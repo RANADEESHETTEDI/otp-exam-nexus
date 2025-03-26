@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
@@ -19,7 +18,6 @@ const ExamCreation = () => {
   const [activeTab, setActiveTab] = useState<'exams' | 'create'>('exams');
   const [searchTerm, setSearchTerm] = useState("");
   
-  // Form state for creating a new exam
   const [newExam, setNewExam] = useState({
     title: "",
     description: "",
@@ -29,7 +27,6 @@ const ExamCreation = () => {
     questions: [] as { text: string; options: string[]; correctOption: number; marks: number }[]
   });
   
-  // Form state for adding a question
   const [newQuestion, setNewQuestion] = useState({
     text: "",
     options: ["", "", "", ""],
@@ -37,7 +34,6 @@ const ExamCreation = () => {
     marks: 10
   });
   
-  // Check authentication
   useEffect(() => {
     if (!user) {
       navigate("/admin/login");
@@ -50,7 +46,6 @@ const ExamCreation = () => {
       return;
     }
     
-    // Fetch exams
     const fetchExams = async () => {
       try {
         const data = await getExams();
@@ -65,7 +60,6 @@ const ExamCreation = () => {
     fetchExams();
   }, [user, navigate]);
   
-  // Filter exams based on search term
   const filteredExams = exams.filter(exam => {
     const searchLower = searchTerm.toLowerCase();
     return (
@@ -75,7 +69,6 @@ const ExamCreation = () => {
     );
   });
   
-  // Format date
   const formatDate = (dateString: string): string => {
     if (!dateString) return "";
     
@@ -89,14 +82,12 @@ const ExamCreation = () => {
     });
   };
   
-  // Handle option change
   const handleOptionChange = (index: number, value: string) => {
     const updatedOptions = [...newQuestion.options];
     updatedOptions[index] = value;
     setNewQuestion({ ...newQuestion, options: updatedOptions });
   };
   
-  // Add question to exam
   const handleAddQuestion = () => {
     if (!newQuestion.text.trim()) {
       toast.error("Question text is required");
@@ -113,7 +104,6 @@ const ExamCreation = () => {
       questions: [...newExam.questions, { ...newQuestion }]
     });
     
-    // Reset form for next question
     setNewQuestion({
       text: "",
       options: ["", "", "", ""],
@@ -124,7 +114,6 @@ const ExamCreation = () => {
     toast.success("Question added to exam");
   };
   
-  // Remove question from exam
   const handleRemoveQuestion = (index: number) => {
     const updatedQuestions = [...newExam.questions];
     updatedQuestions.splice(index, 1);
@@ -132,7 +121,6 @@ const ExamCreation = () => {
     toast.success("Question removed");
   };
   
-  // Create new exam
   const handleCreateExam = () => {
     if (!newExam.title.trim()) {
       toast.error("Exam title is required");
@@ -154,7 +142,6 @@ const ExamCreation = () => {
       return;
     }
     
-    // Mock exam creation
     const startDateTime = new Date(`${newExam.startDate}T${newExam.startTime}`);
     const endDateTime = new Date(startDateTime.getTime() + newExam.duration * 60000);
     
@@ -180,7 +167,6 @@ const ExamCreation = () => {
     
     setExams([newExamData, ...exams]);
     
-    // Reset form
     setNewExam({
       title: "",
       description: "",
@@ -194,7 +180,6 @@ const ExamCreation = () => {
     toast.success("New exam created successfully");
   };
   
-  // Delete exam
   const handleDeleteExam = (examId: string) => {
     if (window.confirm("Are you sure you want to delete this exam?")) {
       setExams(prev => prev.filter(exam => exam.id !== examId));
@@ -202,7 +187,6 @@ const ExamCreation = () => {
     }
   };
   
-  // Change exam status
   const handleChangeStatus = (examId: string, newStatus: 'upcoming' | 'active' | 'completed') => {
     setExams(prev => 
       prev.map(exam => 
@@ -234,7 +218,6 @@ const ExamCreation = () => {
       title="Exam Management"
       subtitle="Create and manage assessments"
     >
-      {/* Tabs */}
       <div className="flex mb-8 border-b">
         <button
           className={`px-4 py-3 font-medium transition-colors relative ${
@@ -270,7 +253,6 @@ const ExamCreation = () => {
         </button>
       </div>
       
-      {/* All Exams Tab */}
       {activeTab === 'exams' && (
         <div>
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
@@ -300,7 +282,7 @@ const ExamCreation = () => {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ duration: 0.4, delay: index * 0.05 }}
                 >
-                  <Card hover="true">
+                  <Card hover={true}>
                     <div className="p-6">
                       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
                         <div>
@@ -403,7 +385,6 @@ const ExamCreation = () => {
         </div>
       )}
       
-      {/* Create Exam Tab */}
       {activeTab === 'create' && (
         <div>
           <Card className="mb-8">

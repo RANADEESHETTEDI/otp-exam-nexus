@@ -38,13 +38,11 @@ const Index = () => {
             >
               Admin
             </Link>
-            <Button 
-              as={Link}
-              to="/login"
-              size="sm"
-            >
-              Sign In
-            </Button>
+            <Link to="/login">
+              <Button size="sm">
+                Sign In
+              </Button>
+            </Link>
           </div>
         </div>
       </header>
@@ -91,28 +89,28 @@ const Index = () => {
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.98 }}
             >
-              <Button 
-                as={Link}
-                to="/login"
-                size="lg"
-                className="px-8 py-3 rounded-xl"
-              >
-                Get Started
-              </Button>
+              <Link to="/login">
+                <Button 
+                  size="lg"
+                  className="px-8 py-3 rounded-xl"
+                >
+                  Get Started
+                </Button>
+              </Link>
             </motion.div>
             <motion.div
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.98 }}
             >
-              <Button 
-                as={Link}
-                to="/admin/login"
-                size="lg"
-                variant="outline"
-                className="px-8 py-3 rounded-xl"
-              >
-                Admin Portal
-              </Button>
+              <Link to="/admin/login">
+                <Button 
+                  size="lg"
+                  variant="outline"
+                  className="px-8 py-3 rounded-xl"
+                >
+                  Admin Portal
+                </Button>
+              </Link>
             </motion.div>
           </div>
         </motion.div>

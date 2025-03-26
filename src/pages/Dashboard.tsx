@@ -213,7 +213,7 @@ const ExamCard = ({ exam, index, actionLabel, actionLink, highlightAction = fals
     animate={{ opacity: 1, y: 0 }}
     transition={{ duration: 0.4, delay: index * 0.1 }}
   >
-    <Card hover="true" className="overflow-hidden">
+    <Card hover={true} className="overflow-hidden">
       <div className="flex flex-col md:flex-row">
         <div className="flex-1 p-6">
           <div className="mb-2">
@@ -248,14 +248,14 @@ const ExamCard = ({ exam, index, actionLabel, actionLink, highlightAction = fals
             </div>
           </div>
           
-          <Button
-            as={Link}
-            to={actionLink}
-            variant={highlightAction ? "default" : "outline"}
-            size="sm"
-          >
-            {actionLabel}
-          </Button>
+          <Link to={actionLink}>
+            <Button
+              variant={highlightAction ? "default" : "outline"}
+              size="sm"
+            >
+              {actionLabel}
+            </Button>
+          </Link>
         </div>
         
         {exam.status === "active" && (
