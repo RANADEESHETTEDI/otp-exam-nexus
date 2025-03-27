@@ -3,6 +3,13 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { supabase } from '@/integrations/supabase/client';
 
+export interface College {
+  id: string;
+  name: string;
+  code: string;
+  created_at: string;
+}
+
 export interface Question {
   id: string;
   text: string;
@@ -21,6 +28,8 @@ export interface Exam {
   startTime: string;
   endTime: string;
   status: 'upcoming' | 'active' | 'completed';
+  collegeId?: string;
+  collegeName?: string;
 }
 
 export interface ExamSubmission {
@@ -128,12 +137,56 @@ export const clearExamProgress = (
   useExamStore.getState().clearExamProgress(userId, examId);
 };
 
-// Fetch all exams
-export const getExams = async (): Promise<Exam[]> => {
+// Fetch all colleges
+export const getColleges = async (): Promise<College[]> => {
   try {
-    const { data: exams, error } = await supabase
-      .from('exams')
+    const { data: colleges, error } = await supabase
+      .from('colleges')
       .select('*');
+    
+    if (error) {
+      throw error;
+    }
+    
+    return colleges || [];
+  } catch (error) {
+    console.error("Error fetching colleges:", error);
+    throw error;
+  }
+};
+
+// Fetch college by ID
+export const getCollegeById = async (collegeId: string): Promise<College | null> => {
+  try {
+    const { data, error } = await supabase
+      .from('colleges')
+      .select('*')
+      .eq('id', collegeId)
+      .maybeSingle();
+    
+    if (error) {
+      throw error;
+    }
+    
+    return data;
+  } catch (error) {
+    console.error("Error fetching college:", error);
+    throw error;
+  }
+};
+
+// Fetch all exams
+export const getExams = async (collegeId?: string): Promise<Exam[]> => {
+  try {
+    let query = supabase
+      .from('exams')
+      .select('*, colleges(name)');
+    
+    if (collegeId) {
+      query = query.eq('college_id', collegeId);
+    }
+    
+    const { data: exams, error } = await query;
     
     if (error) {
       throw error;
@@ -162,7 +215,9 @@ export const getExams = async (): Promise<Exam[]> => {
             questions: [],
             startTime: exam.start_time,
             endTime: exam.end_time,
-            status: getExamStatus(exam.start_time, exam.end_time)
+            status: getExamStatus(exam.start_time, exam.end_time),
+            collegeId: exam.college_id,
+            collegeName: exam.colleges?.name
           };
         }
         
@@ -183,7 +238,9 @@ export const getExams = async (): Promise<Exam[]> => {
           startTime: exam.start_time,
           endTime: exam.end_time,
           status: getExamStatus(exam.start_time, exam.end_time),
-          questions: formattedQuestions
+          questions: formattedQuestions,
+          collegeId: exam.college_id,
+          collegeName: exam.colleges?.name
         };
       })
     );
@@ -200,7 +257,7 @@ export const getExamById = async (examId: string): Promise<Exam | null> => {
   try {
     const { data: exam, error } = await supabase
       .from('exams')
-      .select('*')
+      .select('*, colleges(name)')
       .eq('id', examId)
       .single();
     
@@ -240,7 +297,9 @@ export const getExamById = async (examId: string): Promise<Exam | null> => {
       startTime: exam.start_time,
       endTime: exam.end_time,
       status: getExamStatus(exam.start_time, exam.end_time),
-      questions: formattedQuestions
+      questions: formattedQuestions,
+      collegeId: exam.college_id,
+      collegeName: exam.colleges?.name
     };
   } catch (error) {
     console.error("Error fetching exam:", error);

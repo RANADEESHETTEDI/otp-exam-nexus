@@ -1,31 +1,74 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { AuthLayout } from "@/components/layout/AuthLayout";
 import { Input } from "@/components/ui-custom/Input";
 import { Button } from "@/components/ui-custom/Button";
 import { registerUser } from "@/lib/auth";
+import { getColleges } from "@/lib/exam";
 import { toast } from "sonner";
+import { useAuth } from "@/hooks/useAuth";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 
 const Register = () => {
   const navigate = useNavigate();
+  const { session, profile } = useAuth();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [collegeId, setCollegeId] = useState("");
+  const [colleges, setColleges] = useState<{ id: string; name: string; code: string }[]>([]);
   const [errors, setErrors] = useState({
     name: "",
     email: "",
     password: "",
-    confirmPassword: ""
+    confirmPassword: "",
+    college: ""
   });
   const [isLoading, setIsLoading] = useState(false);
+  const [loadingColleges, setLoadingColleges] = useState(true);
+
+  // Redirect if already logged in
+  useEffect(() => {
+    if (session && profile) {
+      if (profile.role === 'admin') {
+        navigate("/admin/dashboard");
+      } else {
+        navigate("/dashboard");
+      }
+    }
+  }, [session, profile, navigate]);
+
+  // Fetch colleges
+  useEffect(() => {
+    const fetchColleges = async () => {
+      try {
+        setLoadingColleges(true);
+        const collegeData = await getColleges();
+        setColleges(collegeData);
+      } catch (error) {
+        console.error("Error fetching colleges:", error);
+        toast.error("Failed to load colleges. Please try again later.");
+      } finally {
+        setLoadingColleges(false);
+      }
+    };
+
+    fetchColleges();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     // Reset errors
-    setErrors({ name: "", email: "", password: "", confirmPassword: "" });
+    setErrors({
+      name: "",
+      email: "",
+      password: "",
+      confirmPassword: "",
+      college: ""
+    });
     
     // Validate form
     let hasError = false;
@@ -38,7 +81,7 @@ const Register = () => {
     if (!email) {
       setErrors(prev => ({ ...prev, email: "Email is required" }));
       hasError = true;
-    } else if (!email.includes('@')) {
+    } else if (!/\S+@\S+\.\S+/.test(email)) {
       setErrors(prev => ({ ...prev, email: "Please enter a valid email address" }));
       hasError = true;
     }
@@ -56,13 +99,18 @@ const Register = () => {
       hasError = true;
     }
     
+    if (!collegeId) {
+      setErrors(prev => ({ ...prev, college: "Please select your college" }));
+      hasError = true;
+    }
+    
     if (hasError) return;
     
     // Submit form
     setIsLoading(true);
     
     try {
-      const result = await registerUser(email, password, name);
+      const result = await registerUser(email, password, name, collegeId);
       
       if (result.success) {
         toast.success(result.message);
@@ -85,8 +133,8 @@ const Register = () => {
 
   return (
     <AuthLayout
-      title="Create Account"
-      subtitle="Sign up for a new student account"
+      title="Create an Account"
+      subtitle="Join our platform to access exams and resources"
     >
       <form onSubmit={handleSubmit} className="space-y-4">
         <Input
@@ -110,6 +158,31 @@ const Register = () => {
           error={errors.email}
           animate
         />
+        
+        <div className="space-y-1">
+          <label htmlFor="college" className="block text-sm font-medium">
+            College
+          </label>
+          <Select
+            value={collegeId}
+            onValueChange={setCollegeId}
+            disabled={loadingColleges}
+          >
+            <SelectTrigger id="college" className={errors.college ? "border-destructive" : ""}>
+              <SelectValue placeholder={loadingColleges ? "Loading colleges..." : "Select your college"} />
+            </SelectTrigger>
+            <SelectContent>
+              {colleges.map((college) => (
+                <SelectItem key={college.id} value={college.id}>
+                  {college.name} ({college.code})
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {errors.college && (
+            <p className="text-sm font-medium text-destructive mt-1">{errors.college}</p>
+          )}
+        </div>
         
         <Input
           label="Password"

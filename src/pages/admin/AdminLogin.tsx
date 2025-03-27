@@ -7,12 +7,14 @@ import { Button } from "@/components/ui-custom/Button";
 import { loginUser } from "@/lib/auth";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { InfoIcon } from "lucide-react";
 
 const AdminLogin = () => {
   const navigate = useNavigate();
   const { session, profile } = useAuth();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [email, setEmail] = useState("admin@examportal.com");
+  const [password, setPassword] = useState("admin123");
   const [errors, setErrors] = useState({
     email: "",
     password: "",
@@ -84,6 +86,17 @@ const AdminLogin = () => {
       title="Admin Login"
       subtitle="Access the administration portal"
     >
+      <Alert className="mb-4 bg-blue-50 dark:bg-blue-950/40 border-blue-200 dark:border-blue-800">
+        <div className="flex items-start">
+          <InfoIcon className="h-5 w-5 text-blue-500 mt-0.5 mr-2" />
+          <AlertDescription className="text-sm text-blue-700 dark:text-blue-300">
+            Use the default admin credentials:<br />
+            <strong>Email:</strong> admin@examportal.com<br />
+            <strong>Password:</strong> admin123
+          </AlertDescription>
+        </div>
+      </Alert>
+
       <form onSubmit={handleSubmit} className="space-y-4">
         <Input
           label="Admin Email"

@@ -9,8 +9,30 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      colleges: {
+        Row: {
+          code: string
+          created_at: string | null
+          id: string
+          name: string
+        }
+        Insert: {
+          code: string
+          created_at?: string | null
+          id?: string
+          name: string
+        }
+        Update: {
+          code?: string
+          created_at?: string | null
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
       exams: {
         Row: {
+          college_id: string | null
           created_at: string | null
           created_by: string
           duration: number
@@ -20,6 +42,7 @@ export type Database = {
           title: string
         }
         Insert: {
+          college_id?: string | null
           created_at?: string | null
           created_by: string
           duration: number
@@ -29,6 +52,7 @@ export type Database = {
           title: string
         }
         Update: {
+          college_id?: string | null
           created_at?: string | null
           created_by?: string
           duration?: number
@@ -37,11 +61,20 @@ export type Database = {
           start_time?: string
           title?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "exams_college_id_fkey"
+            columns: ["college_id"]
+            isOneToOne: false
+            referencedRelation: "colleges"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
           avatar_url: string | null
+          college_id: string | null
           created_at: string | null
           email: string | null
           id: string
@@ -50,6 +83,7 @@ export type Database = {
         }
         Insert: {
           avatar_url?: string | null
+          college_id?: string | null
           created_at?: string | null
           email?: string | null
           id: string
@@ -58,13 +92,22 @@ export type Database = {
         }
         Update: {
           avatar_url?: string | null
+          college_id?: string | null
           created_at?: string | null
           email?: string | null
           id?: string
           name?: string | null
           role?: Database["public"]["Enums"]["user_role"] | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_college_id_fkey"
+            columns: ["college_id"]
+            isOneToOne: false
+            referencedRelation: "colleges"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       questions: {
         Row: {

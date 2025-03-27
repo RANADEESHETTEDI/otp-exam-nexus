@@ -9,6 +9,8 @@ export interface UserProfile {
   email: string;
   role: 'student' | 'admin';
   profileImage?: string;
+  collegeId?: string;
+  collegeName?: string;
 }
 
 // Login user with Supabase
@@ -44,6 +46,7 @@ export const registerUser = async (
   email: string,
   password: string,
   name: string,
+  collegeId: string,
   isAdmin = false
 ): Promise<{ success: boolean; message: string; }> => {
   if (!email || !password) {
@@ -58,6 +61,7 @@ export const registerUser = async (
         data: {
           name,
           role: isAdmin ? 'admin' : 'student',
+          college_id: collegeId
         }
       }
     });
@@ -97,7 +101,7 @@ export const getCurrentUser = async (): Promise<UserProfile | null> => {
     // Fetch the user's profile from the profiles table to get role info
     const { data: profile } = await supabase
       .from('profiles')
-      .select('*')
+      .select('*, colleges(name)')
       .eq('id', user.id)
       .single();
     
@@ -110,7 +114,9 @@ export const getCurrentUser = async (): Promise<UserProfile | null> => {
       name: profile.name || user.email?.split('@')[0] || '',
       email: user.email || '',
       role: profile.role || 'student',
-      profileImage: profile.avatar_url || `https://ui-avatars.com/api/?name=${profile.name || user.email?.split('@')[0]}&background=random`
+      profileImage: profile.avatar_url || `https://ui-avatars.com/api/?name=${profile.name || user.email?.split('@')[0]}&background=random`,
+      collegeId: profile.college_id,
+      collegeName: profile.colleges?.name
     };
   } catch (error) {
     console.error("Error getting current user:", error);
