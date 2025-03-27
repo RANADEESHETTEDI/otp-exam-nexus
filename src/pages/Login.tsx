@@ -7,28 +7,43 @@ import { Button } from "@/components/ui-custom/Button";
 import { loginUser } from "@/lib/auth";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
+import { motion } from "framer-motion";
 
 const Login = () => {
   const navigate = useNavigate();
-  const { session, profile } = useAuth();
+  const { session, profile, isLoading } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errors, setErrors] = useState({
     email: "",
     password: "",
   });
-  const [isLoading, setIsLoading] = useState(false);
+  const [formLoading, setFormLoading] = useState(false);
+  const [redirectProgress, setRedirectProgress] = useState(0);
 
   // Redirect if already logged in
   useEffect(() => {
-    if (session && profile) {
-      if (profile.role === 'admin') {
-        navigate("/admin/dashboard");
-      } else {
-        navigate("/dashboard");
-      }
+    if (session && profile && !isLoading) {
+      // Start progress animation
+      const interval = setInterval(() => {
+        setRedirectProgress(prev => {
+          if (prev >= 100) {
+            clearInterval(interval);
+            // Redirect based on role
+            if (profile.role === 'admin') {
+              navigate("/admin/dashboard", { replace: true });
+            } else {
+              navigate("/dashboard", { replace: true });
+            }
+            return 100;
+          }
+          return prev + 5;
+        });
+      }, 50);
+      
+      return () => clearInterval(interval);
     }
-  }, [session, profile, navigate]);
+  }, [session, profile, navigate, isLoading]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,7 +67,7 @@ const Login = () => {
     if (hasError) return;
     
     // Submit form
-    setIsLoading(true);
+    setFormLoading(true);
     
     try {
       const result = await loginUser(email, password);
@@ -72,9 +87,55 @@ const Login = () => {
     } catch (error: any) {
       toast.error(error.message || "An unexpected error occurred. Please try again.");
     } finally {
-      setIsLoading(false);
+      setFormLoading(false);
     }
   };
+
+  // If we're redirecting, show a nice transition
+  if (redirectProgress > 0) {
+    return (
+      <AuthLayout
+        title="Welcome Back"
+        subtitle="Signing you in..."
+      >
+        <div className="flex flex-col items-center justify-center py-8">
+          <motion.div 
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mb-4"
+          >
+            <motion.div 
+              className="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center"
+              animate={{ scale: [1, 1.1, 1] }}
+              transition={{ repeat: Infinity, duration: 1.5 }}
+            >
+              <motion.div 
+                className="w-12 h-12 rounded-full bg-primary flex items-center justify-center text-white text-xl font-bold"
+              >
+                {profile?.role === 'admin' ? 'A' : 'S'}
+              </motion.div>
+            </motion.div>
+          </motion.div>
+          
+          <h3 className="text-lg font-medium mb-2">
+            Welcome, {profile?.name || 'User'}!
+          </h3>
+          <p className="text-muted-foreground mb-6">
+            Redirecting to your {profile?.role === 'admin' ? 'admin' : 'student'} dashboard...
+          </p>
+          
+          <div className="w-full bg-secondary rounded-full h-2 mb-4">
+            <motion.div 
+              className="bg-primary h-2 rounded-full"
+              initial={{ width: 0 }}
+              animate={{ width: `${redirectProgress}%` }}
+              transition={{ ease: "easeInOut" }}
+            />
+          </div>
+        </div>
+      </AuthLayout>
+    );
+  }
 
   return (
     <AuthLayout
@@ -108,7 +169,7 @@ const Login = () => {
           <Button
             type="submit"
             fullWidth
-            loading={isLoading}
+            loading={formLoading}
             className="mt-2"
           >
             Sign In
