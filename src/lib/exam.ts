@@ -1,5 +1,8 @@
 
-// Mock exam data and functions
+// Enhanced exam module with dynamic data management
+
+import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 
 export interface Question {
   id: string;
@@ -30,6 +33,14 @@ export interface ExamSubmission {
   score: number;
   totalMarks: number;
   percentage: number;
+}
+
+export interface ExamProgress {
+  examId: string;
+  currentQuestion: number;
+  answers: Record<string, number>;
+  timeRemaining: number | null;
+  startedAt: string;
 }
 
 // Mock exams
@@ -137,18 +148,153 @@ const mockSubmissions: ExamSubmission[] = [
   }
 ];
 
+// Create a store for exams and submissions
+interface ExamStore {
+  exams: Exam[];
+  submissions: ExamSubmission[];
+  examProgress: Record<string, ExamProgress>;
+  addExam: (exam: Exam) => void;
+  updateExam: (examId: string, updates: Partial<Exam>) => void;
+  deleteExam: (examId: string) => void;
+  addSubmission: (submission: ExamSubmission) => void;
+  updateExamProgress: (userId: string, examId: string, progress: Partial<ExamProgress>) => void;
+  getExamProgress: (userId: string, examId: string) => ExamProgress | null;
+}
+
+// Zustand store for exams
+export const useExamStore = create<ExamStore>()(
+  persist(
+    (set, get) => ({
+      exams: mockExams,
+      submissions: mockSubmissions,
+      examProgress: {},
+      
+      addExam: (exam: Exam) => set(state => ({
+        exams: [exam, ...state.exams]
+      })),
+      
+      updateExam: (examId: string, updates: Partial<Exam>) => set(state => ({
+        exams: state.exams.map(exam => 
+          exam.id === examId ? { ...exam, ...updates } : exam
+        )
+      })),
+      
+      deleteExam: (examId: string) => set(state => ({
+        exams: state.exams.filter(exam => exam.id !== examId)
+      })),
+      
+      addSubmission: (submission: ExamSubmission) => set(state => ({
+        submissions: [submission, ...state.submissions],
+        // Clear progress after submission
+        examProgress: Object.entries(state.examProgress).reduce((acc, [key, progress]) => {
+          const [userId, examId] = key.split('|');
+          if (examId !== submission.examId || userId !== submission.userId) {
+            acc[key] = progress;
+          }
+          return acc;
+        }, {} as Record<string, ExamProgress>)
+      })),
+      
+      updateExamProgress: (userId: string, examId: string, progress: Partial<ExamProgress>) => {
+        set(state => {
+          const key = `${userId}|${examId}`;
+          const existingProgress = state.examProgress[key] || {
+            examId,
+            currentQuestion: 0,
+            answers: {},
+            timeRemaining: null,
+            startedAt: new Date().toISOString()
+          };
+          
+          return {
+            examProgress: {
+              ...state.examProgress,
+              [key]: {
+                ...existingProgress,
+                ...progress
+              }
+            }
+          };
+        });
+      },
+      
+      getExamProgress: (userId: string, examId: string) => {
+        const key = `${userId}|${examId}`;
+        return get().examProgress[key] || null;
+      }
+    }),
+    {
+      name: 'exam-storage',
+      // Only persist the submissions and examProgress to avoid overriding mockExams
+      partialize: (state) => ({ 
+        submissions: state.submissions,
+        examProgress: state.examProgress
+      }),
+    }
+  )
+);
+
 // Get all exams
 export const getExams = async (): Promise<Exam[]> => {
   // Simulate API delay
   await new Promise(resolve => setTimeout(resolve, 800));
-  return mockExams;
+  
+  // Update status of exams based on current time
+  const exams = useExamStore.getState().exams;
+  const now = new Date().getTime();
+  
+  exams.forEach(exam => {
+    const startTime = new Date(exam.startTime).getTime();
+    const endTime = new Date(exam.endTime).getTime();
+    
+    if (now < startTime) {
+      if (exam.status !== 'upcoming') {
+        useExamStore.getState().updateExam(exam.id, { status: 'upcoming' });
+      }
+    } else if (now >= startTime && now <= endTime) {
+      if (exam.status !== 'active') {
+        useExamStore.getState().updateExam(exam.id, { status: 'active' });
+      }
+    } else if (now > endTime) {
+      if (exam.status !== 'completed') {
+        useExamStore.getState().updateExam(exam.id, { status: 'completed' });
+      }
+    }
+  });
+  
+  return useExamStore.getState().exams;
 };
 
 // Get exam by ID
 export const getExamById = async (examId: string): Promise<Exam | null> => {
   // Simulate API delay
   await new Promise(resolve => setTimeout(resolve, 500));
-  return mockExams.find(exam => exam.id === examId) || null;
+  
+  // Update status of the exam based on current time
+  const exams = useExamStore.getState().exams;
+  const exam = exams.find(e => e.id === examId);
+  
+  if (exam) {
+    const now = new Date().getTime();
+    const startTime = new Date(exam.startTime).getTime();
+    const endTime = new Date(exam.endTime).getTime();
+    
+    let newStatus = exam.status;
+    
+    if (now < startTime) {
+      newStatus = 'upcoming';
+    } else if (now >= startTime && now <= endTime) {
+      newStatus = 'active';
+    } else if (now > endTime) {
+      newStatus = 'completed';
+    }
+    
+    if (newStatus !== exam.status) {
+      useExamStore.getState().updateExam(exam.id, { status: newStatus });
+    }
+  }
+  
+  return useExamStore.getState().exams.find(e => e.id === examId) || null;
 };
 
 // Submit exam
@@ -161,7 +307,7 @@ export const submitExam = async (
   // Simulate API delay
   await new Promise(resolve => setTimeout(resolve, 1200));
   
-  const exam = mockExams.find(e => e.id === examId);
+  const exam = useExamStore.getState().exams.find(e => e.id === examId);
   
   if (!exam) {
     throw new Error("Exam not found");
@@ -191,7 +337,8 @@ export const submitExam = async (
     percentage
   };
   
-  // In a real app, this would be saved to a database
+  // Save submission
+  useExamStore.getState().addSubmission(submission);
   
   return submission;
 };
@@ -203,7 +350,53 @@ export const getSubmission = async (
 ): Promise<ExamSubmission | null> => {
   // Simulate API delay
   await new Promise(resolve => setTimeout(resolve, 500));
-  return mockSubmissions.find(
+  
+  return useExamStore.getState().submissions.find(
     submission => submission.userId === userId && submission.examId === examId
   ) || null;
+};
+
+// Save exam progress
+export const saveExamProgress = (
+  userId: string,
+  examId: string,
+  progress: Partial<ExamProgress>
+): void => {
+  useExamStore.getState().updateExamProgress(userId, examId, progress);
+};
+
+// Get exam progress
+export const getExamProgress = (
+  userId: string,
+  examId: string
+): ExamProgress | null => {
+  return useExamStore.getState().getExamProgress(userId, examId);
+};
+
+// Auto-submit exams that have ended
+export const checkAndAutoSubmitExams = async (userId: string): Promise<void> => {
+  const state = useExamStore.getState();
+  const now = new Date().getTime();
+  
+  // Check for exams that have ended but haven't been submitted
+  for (const [key, progress] of Object.entries(state.examProgress)) {
+    const [progressUserId, examId] = key.split('|');
+    
+    if (progressUserId !== userId) continue;
+    
+    const exam = state.exams.find(e => e.id === examId);
+    if (!exam) continue;
+    
+    const endTime = new Date(exam.endTime).getTime();
+    
+    if (now > endTime) {
+      // Exam has ended, auto submit
+      await submitExam(
+        examId,
+        userId,
+        progress.answers,
+        progress.startedAt
+      );
+    }
+  }
 };
