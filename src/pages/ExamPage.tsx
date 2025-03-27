@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Card } from "@/components/ui-custom/Card";
 import { Button } from "@/components/ui-custom/Button";
 import { Progress } from "@/components/ui/progress";
-import { getCurrentUser } from "@/lib/auth";
+import { useAuth } from "@/hooks/useAuth";
 import { 
   getExamById, 
   submitExam, 
@@ -21,7 +21,7 @@ import { formatTimeMMSS } from "@/utils/dateUtils";
 const ExamPage = () => {
   const navigate = useNavigate();
   const { examId } = useParams<{ examId: string }>();
-  const user = getCurrentUser();
+  const { profile, isLoading: authLoading } = useAuth();
   
   const [isLoading, setIsLoading] = useState(true);
   const [currentQuestion, setCurrentQuestion] = useState(0);
@@ -41,7 +41,9 @@ const ExamPage = () => {
   
   // Check authentication
   useEffect(() => {
-    if (!user) {
+    if (authLoading) return;
+    
+    if (!profile) {
       toast.error("Please log in to access the exam");
       navigate("/login");
       return;
@@ -54,7 +56,7 @@ const ExamPage = () => {
     }
     
     // Check for auto-submissions
-    checkAndAutoSubmitExams(user.id)
+    checkAndAutoSubmitExams(profile.id)
       .catch(error => {
         console.error("Error checking for auto-submissions:", error);
       });
@@ -77,7 +79,7 @@ const ExamPage = () => {
         }
         
         // Check if there's existing progress
-        const progress = getExamProgress(user.id, examId);
+        const progress = getExamProgress(profile.id, examId);
         
         if (progress) {
           // Resume from saved progress
@@ -102,7 +104,7 @@ const ExamPage = () => {
           setExamStartedAt(startTime);
           
           // Save initial progress
-          saveExamProgress(user.id, examId, {
+          saveExamProgress(profile.id, examId, {
             examId,
             currentQuestion: 0,
             answers: initialAnswers,
@@ -137,11 +139,11 @@ const ExamPage = () => {
         clearInterval(saveProgressInterval.current);
       }
     };
-  }, [user, examId, navigate]);
+  }, [profile, examId, navigate, authLoading]);
   
   // Start timer when exam data is loaded
   useEffect(() => {
-    if (timeLeft === null || !examData || !user || !examId) return;
+    if (timeLeft === null || !examData || !profile || !examId) return;
     
     // Update timer every second
     timerRef.current = setInterval(() => {
@@ -160,7 +162,7 @@ const ExamPage = () => {
     saveProgressInterval.current = setInterval(() => {
       if (isSubmitting) return; // Don't save if submitting
       
-      saveExamProgress(user.id, examId, {
+      saveExamProgress(profile.id, examId, {
         currentQuestion,
         answers,
         timeRemaining: timeLeft,
@@ -176,7 +178,7 @@ const ExamPage = () => {
         clearInterval(saveProgressInterval.current);
       }
     };
-  }, [timeLeft, examData, user, examId, currentQuestion, answers, examStartedAt, isSubmitting]);
+  }, [timeLeft, examData, profile, examId, currentQuestion, answers, examStartedAt, isSubmitting]);
   
   // Calculate progress
   const calculateProgress = (): number => {
@@ -194,8 +196,8 @@ const ExamPage = () => {
     }));
     
     // Save progress after answer selection
-    if (user && examId) {
-      saveExamProgress(user.id, examId, {
+    if (profile && examId) {
+      saveExamProgress(profile.id, examId, {
         currentQuestion,
         answers: { ...answers, [questionId]: optionIndex },
         timeRemaining: timeLeft,
@@ -213,8 +215,8 @@ const ExamPage = () => {
       setCurrentQuestion(nextQuestion);
       
       // Save current question in progress
-      if (user && examId) {
-        saveExamProgress(user.id, examId, {
+      if (profile && examId) {
+        saveExamProgress(profile.id, examId, {
           currentQuestion: nextQuestion,
           answers,
           timeRemaining: timeLeft,
@@ -231,8 +233,8 @@ const ExamPage = () => {
       setCurrentQuestion(prevQuestion);
       
       // Save current question in progress
-      if (user && examId) {
-        saveExamProgress(user.id, examId, {
+      if (profile && examId) {
+        saveExamProgress(profile.id, examId, {
           currentQuestion: prevQuestion,
           answers,
           timeRemaining: timeLeft,
@@ -244,7 +246,7 @@ const ExamPage = () => {
   
   // Submit exam
   const handleSubmitExam = async () => {
-    if (!examData || !user || !examId) return;
+    if (!examData || !profile || !examId) return;
     
     // Check if all questions are answered
     const unansweredCount = Object.values(answers).filter(a => a === -1).length;
@@ -274,7 +276,7 @@ const ExamPage = () => {
         }
       }
       
-      await submitExam(examId, user.id, finalAnswers, examStartedAt);
+      await submitExam(examId, profile.id, finalAnswers, examStartedAt);
       
       toast.success("Exam submitted successfully!");
       navigate(`/results/${examId}`);
@@ -302,8 +304,8 @@ const ExamPage = () => {
     setCurrentQuestion(index);
     
     // Save current question in progress
-    if (user && examId) {
-      saveExamProgress(user.id, examId, {
+    if (profile && examId) {
+      saveExamProgress(profile.id, examId, {
         currentQuestion: index,
         answers,
         timeRemaining: timeLeft,
@@ -312,7 +314,7 @@ const ExamPage = () => {
     }
   };
   
-  if (isLoading || !examData) {
+  if (authLoading || isLoading || !examData) {
     return (
       <DashboardLayout title="Loading Exam" subtitle="Please wait while we prepare your exam...">
         <div className="flex justify-center py-16">
