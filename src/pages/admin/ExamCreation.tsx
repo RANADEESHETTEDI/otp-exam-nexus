@@ -8,6 +8,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { getExams, Exam } from "@/lib/exam";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
+import { formatDate } from "@/utils/dateUtils";
 
 const ExamCreation = () => {
   const navigate = useNavigate();
@@ -68,19 +69,6 @@ const ExamCreation = () => {
       exam.status.toLowerCase().includes(searchLower)
     );
   });
-  
-  const formatDate = (dateString: string): string => {
-    if (!dateString) return "";
-    
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { 
-      month: 'short', 
-      day: 'numeric',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
   
   const handleOptionChange = (index: number, value: string) => {
     const updatedOptions = [...newQuestion.options];

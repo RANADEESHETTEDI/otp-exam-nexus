@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
@@ -8,6 +7,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { getExams, Exam } from "@/lib/exam";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
+import { formatDate } from "@/utils/dateUtils";
 
 const Dashboard = () => {
   const navigate = useNavigate();
@@ -15,7 +15,6 @@ const Dashboard = () => {
   const [exams, setExams] = useState<Exam[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
-  // Check authentication
   useEffect(() => {
     if (!user) {
       navigate("/login");
@@ -27,7 +26,6 @@ const Dashboard = () => {
       return;
     }
     
-    // Fetch exams
     const fetchExams = async () => {
       try {
         const data = await getExams();
@@ -42,22 +40,10 @@ const Dashboard = () => {
     fetchExams();
   }, [user, navigate]);
   
-  // Categorize exams
   const upcomingExams = exams.filter(exam => exam.status === "upcoming");
   const activeExams = exams.filter(exam => exam.status === "active");
   const completedExams = exams.filter(exam => exam.status === "completed");
   
-  // Format date
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { 
-      month: 'short', 
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
-
   if (isLoading) {
     return (
       <DashboardLayout title="Dashboard" subtitle="Loading your exams...">
@@ -94,7 +80,6 @@ const Dashboard = () => {
         />
       </div>
       
-      {/* Active Exams */}
       <section className="mb-12">
         <h2 className="text-2xl font-medium mb-6">Active Exams</h2>
         
@@ -118,7 +103,6 @@ const Dashboard = () => {
         )}
       </section>
       
-      {/* Upcoming Exams */}
       <section className="mb-12">
         <h2 className="text-2xl font-medium mb-6">Upcoming Exams</h2>
         
@@ -141,7 +125,6 @@ const Dashboard = () => {
         )}
       </section>
       
-      {/* Completed Exams */}
       <section>
         <h2 className="text-2xl font-medium mb-6">Completed Exams</h2>
         
@@ -167,7 +150,6 @@ const Dashboard = () => {
   );
 };
 
-// Stats Card Component
 interface StatsCardProps {
   title: string;
   value: string;
@@ -198,7 +180,6 @@ const StatsCard = ({ title, value, description, variant = "default" }: StatsCard
   </motion.div>
 );
 
-// Exam Card Component
 interface ExamCardProps {
   exam: Exam;
   index: number;
