@@ -1,44 +1,47 @@
+
 import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui-custom/Card";
 import { Button } from "@/components/ui-custom/Button";
-import { getCurrentUser } from "@/lib/auth";
-import { getExams, Exam } from "@/lib/exam";
+import { useAuth } from "@/hooks/useAuth";
+import { fetchExams } from "@/services/examService";
+import { Exam } from "@/lib/exam";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { formatDate } from "@/utils/dateUtils";
 
 const Dashboard = () => {
   const navigate = useNavigate();
-  const user = getCurrentUser();
+  const { profile, session } = useAuth();
   const [exams, setExams] = useState<Exam[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
   useEffect(() => {
-    if (!user) {
+    if (!session) {
       navigate("/login");
       return;
     }
     
-    if (user.role === "admin") {
+    if (profile?.role === "admin") {
       navigate("/admin/dashboard");
       return;
     }
     
-    const fetchExams = async () => {
+    const loadExams = async () => {
       try {
-        const data = await getExams();
+        const data = await fetchExams();
         setExams(data);
       } catch (error) {
+        console.error("Error loading exams:", error);
         toast.error("Failed to load exams. Please try again.");
       } finally {
         setIsLoading(false);
       }
     };
     
-    fetchExams();
-  }, [user, navigate]);
+    loadExams();
+  }, [profile, session, navigate]);
   
   const upcomingExams = exams.filter(exam => exam.status === "upcoming");
   const activeExams = exams.filter(exam => exam.status === "active");
@@ -57,7 +60,7 @@ const Dashboard = () => {
   return (
     <DashboardLayout
       title="Student Dashboard"
-      subtitle={`Welcome back, ${user?.name || 'Student'}`}
+      subtitle={`Welcome back, ${profile?.name || 'Student'}`}
     >
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
         <StatsCard 

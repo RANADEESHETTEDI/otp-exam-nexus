@@ -41,21 +41,27 @@ export type Database = {
       }
       profiles: {
         Row: {
+          avatar_url: string | null
           created_at: string | null
           email: string | null
           id: string
+          name: string | null
           role: Database["public"]["Enums"]["user_role"] | null
         }
         Insert: {
+          avatar_url?: string | null
           created_at?: string | null
           email?: string | null
           id: string
+          name?: string | null
           role?: Database["public"]["Enums"]["user_role"] | null
         }
         Update: {
+          avatar_url?: string | null
           created_at?: string | null
           email?: string | null
           id?: string
+          name?: string | null
           role?: Database["public"]["Enums"]["user_role"] | null
         }
         Relationships: []

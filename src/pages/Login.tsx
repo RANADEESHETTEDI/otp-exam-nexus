@@ -1,14 +1,16 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { AuthLayout } from "@/components/layout/AuthLayout";
 import { Input } from "@/components/ui-custom/Input";
 import { Button } from "@/components/ui-custom/Button";
 import { loginUser } from "@/lib/auth";
 import { toast } from "sonner";
+import { useAuth } from "@/hooks/useAuth";
 
 const Login = () => {
   const navigate = useNavigate();
+  const { session, profile } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errors, setErrors] = useState({
@@ -16,6 +18,17 @@ const Login = () => {
     password: "",
   });
   const [isLoading, setIsLoading] = useState(false);
+
+  // Redirect if already logged in
+  useEffect(() => {
+    if (session && profile) {
+      if (profile.role === 'admin') {
+        navigate("/admin/dashboard");
+      } else {
+        navigate("/dashboard");
+      }
+    }
+  }, [session, profile, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,8 +58,8 @@ const Login = () => {
       const result = await loginUser(email, password);
       
       if (result.success) {
-        toast.success(result.message);
-        navigate("/verify-otp", { state: { email } });
+        toast.success("Login successful");
+        // Navigation will be handled by the auth state change in useEffect
       } else {
         if (result.message.includes("email")) {
           setErrors(prev => ({ ...prev, email: result.message }));
@@ -56,8 +69,8 @@ const Login = () => {
           toast.error(result.message);
         }
       }
-    } catch (error) {
-      toast.error("An unexpected error occurred. Please try again.");
+    } catch (error: any) {
+      toast.error(error.message || "An unexpected error occurred. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -98,7 +111,7 @@ const Login = () => {
             loading={isLoading}
             className="mt-2"
           >
-            Continue
+            Sign In
           </Button>
         </div>
         
@@ -106,8 +119,8 @@ const Login = () => {
           <span className="text-muted-foreground">
             Don't have an account?{" "}
           </span>
-          <Link to="/login" className="text-primary hover:underline font-medium">
-            Contact administrator
+          <Link to="/register" className="text-primary hover:underline font-medium">
+            Sign up
           </Link>
         </div>
       </form>
