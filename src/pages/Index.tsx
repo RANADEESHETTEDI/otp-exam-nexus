@@ -1,24 +1,25 @@
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui-custom/Button";
-import { getCurrentUser } from "@/lib/auth";
+import { getCurrentUser, UserProfile } from "@/lib/auth";
+import { useAuth } from "@/hooks/useAuth";
 
 const Index = () => {
   const navigate = useNavigate();
-  const user = getCurrentUser();
+  const { profile } = useAuth();
   
   useEffect(() => {
     // If user is already logged in, redirect to dashboard
-    if (user) {
-      if (user.role === 'admin') {
+    if (profile) {
+      if (profile.role === 'admin') {
         navigate('/admin/dashboard');
       } else {
         navigate('/dashboard');
       }
     }
-  }, [user, navigate]);
+  }, [profile, navigate]);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-secondary flex flex-col">

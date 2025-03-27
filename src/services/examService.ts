@@ -30,8 +30,12 @@ export const fetchExams = async (): Promise<Exam[]> => {
           return {
             ...exam,
             questions: [],
-            status: getExamStatus(exam.start_time, exam.end_time)
-          };
+            status: getExamStatus(exam.start_time, exam.end_time),
+            description: exam.title || '', // Add a description field based on title
+            totalMarks: 0,
+            startTime: exam.start_time,
+            endTime: exam.end_time
+          } as Exam;
         }
         
         const formattedQuestions: Question[] = questions?.map(q => ({
@@ -45,14 +49,15 @@ export const fetchExams = async (): Promise<Exam[]> => {
         return {
           id: exam.id,
           title: exam.title,
-          description: exam.title, // Using title as description since we don't have a description column
+          description: exam.title || '', // Using title as description since we don't have a description column
           duration: exam.duration,
           totalMarks: formattedQuestions.length * 10, // Each question is worth 10 marks
           startTime: exam.start_time,
           endTime: exam.end_time,
           status: getExamStatus(exam.start_time, exam.end_time),
-          questions: formattedQuestions
-        };
+          questions: formattedQuestions,
+          collegeId: exam.college_id
+        } as Exam;
       })
     );
     
@@ -102,14 +107,15 @@ export const fetchExamById = async (examId: string): Promise<Exam | null> => {
     return {
       id: exam.id,
       title: exam.title,
-      description: exam.title, // Using title as description since we don't have a description column
+      description: exam.title || '', // Using title as description since we don't have a description column
       duration: exam.duration,
       totalMarks: formattedQuestions.length * 10, // Each question is worth 10 marks
       startTime: exam.start_time,
       endTime: exam.end_time,
       status: getExamStatus(exam.start_time, exam.end_time),
-      questions: formattedQuestions
-    };
+      questions: formattedQuestions,
+      collegeId: exam.college_id
+    } as Exam;
   } catch (error) {
     console.error("Error fetching exam:", error);
     throw error;
@@ -208,10 +214,20 @@ export const fetchSubmission = async (
       throw new Error("Exam not found");
     }
     
+    // Ensure answers is properly typed as a Record<string, number>
+    const typedAnswers: Record<string, number> = {};
+    if (data.answers && typeof data.answers === 'object') {
+      Object.entries(data.answers).forEach(([key, value]) => {
+        if (typeof value === 'number') {
+          typedAnswers[key] = value;
+        }
+      });
+    }
+    
     return {
       examId: data.exam_id,
       userId: data.user_id,
-      answers: data.answers,
+      answers: typedAnswers,
       startedAt: data.submitted_at, // We don't have a startedAt field, using submittedAt
       submittedAt: data.submitted_at,
       score: data.score,

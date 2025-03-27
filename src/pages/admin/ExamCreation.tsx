@@ -4,15 +4,15 @@ import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui-custom/Card";
 import { Button } from "@/components/ui-custom/Button";
 import { Input } from "@/components/ui-custom/Input";
-import { getCurrentUser } from "@/lib/auth";
 import { getExams, Exam } from "@/lib/exam";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { formatDate } from "@/utils/dateUtils";
+import { useAuth } from "@/hooks/useAuth";
 
 const ExamCreation = () => {
   const navigate = useNavigate();
-  const user = getCurrentUser();
+  const { profile, isLoading: isAuthLoading } = useAuth();
   
   const [exams, setExams] = useState<Exam[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -36,12 +36,14 @@ const ExamCreation = () => {
   });
   
   useEffect(() => {
-    if (!user) {
+    if (isAuthLoading) return;
+    
+    if (!profile) {
       navigate("/admin/login");
       return;
     }
     
-    if (user.role !== "admin") {
+    if (profile.role !== "admin") {
       toast.error("You do not have permission to access this page");
       navigate("/login");
       return;
@@ -59,7 +61,7 @@ const ExamCreation = () => {
     };
     
     fetchExams();
-  }, [user, navigate]);
+  }, [profile, navigate, isAuthLoading]);
   
   const filteredExams = exams.filter(exam => {
     const searchLower = searchTerm.toLowerCase();
@@ -191,7 +193,7 @@ const ExamCreation = () => {
     toast.success(`Exam ${statusText} successfully`);
   };
 
-  if (isLoading) {
+  if (isLoading || isAuthLoading) {
     return (
       <DashboardLayout title="Exam Management" subtitle="Loading exams...">
         <div className="flex justify-center py-16">

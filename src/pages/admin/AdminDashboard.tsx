@@ -1,16 +1,17 @@
+
 import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui-custom/Card";
 import { Button } from "@/components/ui-custom/Button";
-import { getCurrentUser } from "@/lib/auth";
 import { getExams, Exam } from "@/lib/exam";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
+import { useAuth } from "@/hooks/useAuth";
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
-  const user = getCurrentUser();
+  const { profile, isLoading: isAuthLoading } = useAuth();
   const [exams, setExams] = useState<Exam[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
@@ -24,12 +25,14 @@ const AdminDashboard = () => {
   
   // Check authentication
   useEffect(() => {
-    if (!user) {
+    if (isAuthLoading) return;
+    
+    if (!profile) {
       navigate("/admin/login");
       return;
     }
     
-    if (user.role !== "admin") {
+    if (profile.role !== "admin") {
       toast.error("You do not have permission to access this page");
       navigate("/login");
       return;
@@ -48,9 +51,9 @@ const AdminDashboard = () => {
     };
     
     fetchExams();
-  }, [user, navigate]);
+  }, [profile, navigate, isAuthLoading]);
   
-  if (isLoading) {
+  if (isLoading || isAuthLoading) {
     return (
       <DashboardLayout title="Admin Dashboard" subtitle="Loading dashboard data...">
         <div className="flex justify-center py-16">
@@ -63,7 +66,7 @@ const AdminDashboard = () => {
   return (
     <DashboardLayout
       title="Admin Dashboard"
-      subtitle={`Welcome back, ${user?.name || 'Administrator'}`}
+      subtitle={`Welcome back, ${profile?.name || 'Administrator'}`}
     >
       {/* Stats Overview */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">

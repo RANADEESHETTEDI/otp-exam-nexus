@@ -1,20 +1,19 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui-custom/Card";
 import { Button } from "@/components/ui-custom/Button";
 import { Progress } from "@/components/ui/progress";
-import { getCurrentUser } from "@/lib/auth";
 import { getExamById, getSubmission } from "@/lib/exam";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { formatDate, calculateTimeDifference } from "@/utils/dateUtils";
+import { useAuth } from "@/hooks/useAuth";
 
 const Results = () => {
   const navigate = useNavigate();
   const { examId } = useParams<{ examId: string }>();
-  const user = getCurrentUser();
+  const { profile, isLoading: isAuthLoading } = useAuth();
   
   const [isLoading, setIsLoading] = useState(true);
   const [examData, setExamData] = useState<any>(null);
@@ -22,7 +21,9 @@ const Results = () => {
   
   // Check authentication
   useEffect(() => {
-    if (!user) {
+    if (isAuthLoading) return;
+    
+    if (!profile) {
       toast.error("Please log in to view results");
       navigate("/login");
       return;
@@ -39,7 +40,7 @@ const Results = () => {
       try {
         const [exam, submissionData] = await Promise.all([
           getExamById(examId),
-          getSubmission(user.id, examId)
+          getSubmission(profile.id, examId)
         ]);
         
         if (!exam) {
@@ -65,7 +66,7 @@ const Results = () => {
     };
     
     fetchData();
-  }, [user, examId, navigate]);
+  }, [profile, examId, navigate, isAuthLoading]);
   
   if (isLoading || !examData || !submission) {
     return (
