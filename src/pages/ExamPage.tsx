@@ -229,9 +229,9 @@ const ExamPage = () => {
               variant="destructive" 
               size="sm" 
               onClick={handleSubmitExam}
-              loading={isSubmitting}
+              disabled={isSubmitting}
             >
-              Submit Exam
+              {isSubmitting ? "Submitting..." : "Submit Exam"}
             </Button>
           </div>
         </div>
