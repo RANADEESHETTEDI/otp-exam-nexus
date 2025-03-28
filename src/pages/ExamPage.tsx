@@ -4,15 +4,24 @@ import { useNavigate, useParams } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Card } from "@/components/ui-custom/Card";
 import { Button } from "@/components/ui-custom/Button";
-import { getCurrentUser } from "@/lib/auth";
-import { getExamById, submitExam, Question } from "@/lib/exam";
+import { Progress } from "@/components/ui/progress";
+import { useAuth } from "@/hooks/useAuth";
+import { 
+  getExamById, 
+  submitExam, 
+  Question, 
+  saveExamProgress, 
+  getExamProgress,
+  checkAndAutoSubmitExams
+} from "@/lib/exam";
 import { toast } from "sonner";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
+import { formatTimeMMSS } from "@/utils/dateUtils";
 
 const ExamPage = () => {
   const navigate = useNavigate();
   const { examId } = useParams<{ examId: string }>();
-  const user = getCurrentUser();
+  const { profile, isLoading: authLoading } = useAuth();
   
   const [isLoading, setIsLoading] = useState(true);
   const [currentQuestion, setCurrentQuestion] = useState(0);
@@ -24,22 +33,33 @@ const ExamPage = () => {
     questions: Question[];
     duration: number;
   } | null>(null);
-  const [examStartedAt] = useState(new Date().toISOString());
+  const [examStartedAt, setExamStartedAt] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const saveProgressInterval = useRef<NodeJS.Timeout | null>(null);
   
   // Check authentication
   useEffect(() => {
-    if (!user) {
+    if (authLoading) return;
+    
+    if (!profile) {
+      toast.error("Please log in to access the exam");
       navigate("/login");
       return;
     }
     
     if (!examId) {
+      toast.error("No exam selected");
       navigate("/dashboard");
       return;
     }
+    
+    // Check for auto-submissions
+    checkAndAutoSubmitExams(profile.id)
+      .catch(error => {
+        console.error("Error checking for auto-submissions:", error);
+      });
     
     // Fetch exam data
     const fetchExam = async () => {
@@ -53,9 +73,44 @@ const ExamPage = () => {
         }
         
         if (exam.status !== "active") {
-          toast.error("This exam is not currently active");
+          toast.error(`This exam is currently ${exam.status}`);
           navigate("/dashboard");
           return;
+        }
+        
+        // Check if there's existing progress
+        const progress = getExamProgress(profile.id, examId);
+        
+        if (progress) {
+          // Resume from saved progress
+          setCurrentQuestion(progress.currentQuestion);
+          setAnswers(progress.answers);
+          setTimeLeft(progress.timeRemaining !== null ? progress.timeRemaining : exam.duration * 60);
+          setExamStartedAt(progress.startedAt);
+        } else {
+          // Start new exam
+          // Initialize empty answers object
+          const initialAnswers: Record<string, number> = {};
+          exam.questions.forEach(question => {
+            initialAnswers[question.id] = -1; // -1 means unanswered
+          });
+          setAnswers(initialAnswers);
+          
+          // Set timer to exam duration
+          setTimeLeft(exam.duration * 60);
+          
+          // Record exam start time
+          const startTime = new Date().toISOString();
+          setExamStartedAt(startTime);
+          
+          // Save initial progress
+          saveExamProgress(profile.id, examId, {
+            examId,
+            currentQuestion: 0,
+            answers: initialAnswers,
+            timeRemaining: exam.duration * 60,
+            startedAt: startTime
+          });
         }
         
         setExamData({
@@ -64,16 +119,6 @@ const ExamPage = () => {
           questions: exam.questions,
           duration: exam.duration,
         });
-        
-        // Initialize timer
-        setTimeLeft(exam.duration * 60);
-        
-        // Initialize empty answers object
-        const initialAnswers: Record<string, number> = {};
-        exam.questions.forEach(question => {
-          initialAnswers[question.id] = -1; // -1 means unanswered
-        });
-        setAnswers(initialAnswers);
         
       } catch (error) {
         toast.error("Failed to load exam. Please try again.");
@@ -90,16 +135,20 @@ const ExamPage = () => {
       if (timerRef.current) {
         clearInterval(timerRef.current);
       }
+      if (saveProgressInterval.current) {
+        clearInterval(saveProgressInterval.current);
+      }
     };
-  }, [user, examId, navigate]);
+  }, [profile, examId, navigate, authLoading]);
   
   // Start timer when exam data is loaded
   useEffect(() => {
-    if (timeLeft === null || !examData) return;
+    if (timeLeft === null || !examData || !profile || !examId) return;
     
+    // Update timer every second
     timerRef.current = setInterval(() => {
       setTimeLeft(prev => {
-        if (prev === null || prev <= 1) {
+        if (prev === null || prev <= 0) {
           // Time's up - submit automatically
           if (timerRef.current) clearInterval(timerRef.current);
           handleSubmitExam();
@@ -109,19 +158,27 @@ const ExamPage = () => {
       });
     }, 1000);
     
+    // Save progress every 10 seconds
+    saveProgressInterval.current = setInterval(() => {
+      if (isSubmitting) return; // Don't save if submitting
+      
+      saveExamProgress(profile.id, examId, {
+        currentQuestion,
+        answers,
+        timeRemaining: timeLeft,
+        startedAt: examStartedAt
+      });
+    }, 10000);
+    
     return () => {
       if (timerRef.current) {
         clearInterval(timerRef.current);
       }
+      if (saveProgressInterval.current) {
+        clearInterval(saveProgressInterval.current);
+      }
     };
-  }, [timeLeft, examData]);
-  
-  // Format time to mm:ss
-  const formatTime = (seconds: number): string => {
-    const minutes = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
+  }, [timeLeft, examData, profile, examId, currentQuestion, answers, examStartedAt, isSubmitting]);
   
   // Calculate progress
   const calculateProgress = (): number => {
@@ -137,6 +194,16 @@ const ExamPage = () => {
       ...prev,
       [questionId]: optionIndex,
     }));
+    
+    // Save progress after answer selection
+    if (profile && examId) {
+      saveExamProgress(profile.id, examId, {
+        currentQuestion,
+        answers: { ...answers, [questionId]: optionIndex },
+        timeRemaining: timeLeft,
+        startedAt: examStartedAt
+      });
+    }
   };
   
   // Navigate to next question
@@ -144,26 +211,48 @@ const ExamPage = () => {
     if (!examData) return;
     
     if (currentQuestion < examData.questions.length - 1) {
-      setCurrentQuestion(prev => prev + 1);
+      const nextQuestion = currentQuestion + 1;
+      setCurrentQuestion(nextQuestion);
+      
+      // Save current question in progress
+      if (profile && examId) {
+        saveExamProgress(profile.id, examId, {
+          currentQuestion: nextQuestion,
+          answers,
+          timeRemaining: timeLeft,
+          startedAt: examStartedAt
+        });
+      }
     }
   };
   
   // Navigate to previous question
   const handlePrevQuestion = () => {
     if (currentQuestion > 0) {
-      setCurrentQuestion(prev => prev - 1);
+      const prevQuestion = currentQuestion - 1;
+      setCurrentQuestion(prevQuestion);
+      
+      // Save current question in progress
+      if (profile && examId) {
+        saveExamProgress(profile.id, examId, {
+          currentQuestion: prevQuestion,
+          answers,
+          timeRemaining: timeLeft,
+          startedAt: examStartedAt
+        });
+      }
     }
   };
   
   // Submit exam
   const handleSubmitExam = async () => {
-    if (!examData || !user || !examId) return;
+    if (!examData || !profile || !examId) return;
     
     // Check if all questions are answered
     const unansweredCount = Object.values(answers).filter(a => a === -1).length;
     if (unansweredCount > 0 && !isSubmitting) {
       // Ask for confirmation
-      if (!window.confirm(`You have ${unansweredCount} unanswered questions. Are you sure you want to submit?`)) {
+      if (!window.confirm(`You have ${unansweredCount} unanswered ${unansweredCount === 1 ? 'question' : 'questions'}. Are you sure you want to submit?`)) {
         return;
       }
     }
@@ -171,6 +260,9 @@ const ExamPage = () => {
     // Clean up timer
     if (timerRef.current) {
       clearInterval(timerRef.current);
+    }
+    if (saveProgressInterval.current) {
+      clearInterval(saveProgressInterval.current);
     }
     
     setIsSubmitting(true);
@@ -184,17 +276,45 @@ const ExamPage = () => {
         }
       }
       
-      await submitExam(examId, user.id, finalAnswers, examStartedAt);
+      await submitExam(examId, profile.id, finalAnswers, examStartedAt);
       
       toast.success("Exam submitted successfully!");
       navigate(`/results/${examId}`);
     } catch (error) {
       toast.error("Failed to submit exam. Please try again.");
       setIsSubmitting(false);
+      
+      // Restart timer if submission fails
+      if (timeLeft && timeLeft > 0) {
+        timerRef.current = setInterval(() => {
+          setTimeLeft(prev => {
+            if (prev === null || prev <= 0) {
+              if (timerRef.current) clearInterval(timerRef.current);
+              return 0;
+            }
+            return prev - 1;
+          });
+        }, 1000);
+      }
     }
   };
   
-  if (isLoading || !examData) {
+  // Navigate to specific question
+  const handleQuestionNavigation = (index: number) => {
+    setCurrentQuestion(index);
+    
+    // Save current question in progress
+    if (profile && examId) {
+      saveExamProgress(profile.id, examId, {
+        currentQuestion: index,
+        answers,
+        timeRemaining: timeLeft,
+        startedAt: examStartedAt
+      });
+    }
+  };
+  
+  if (authLoading || isLoading || !examData) {
     return (
       <DashboardLayout title="Loading Exam" subtitle="Please wait while we prepare your exam...">
         <div className="flex justify-center py-16">
@@ -222,89 +342,139 @@ const ExamPage = () => {
           
           <div className="flex items-center space-x-4">
             <div className={`text-sm font-medium ${timeLeft && timeLeft < 300 ? "text-destructive animate-pulse" : ""}`}>
-              Time Remaining: {timeLeft !== null ? formatTime(timeLeft) : "00:00"}
+              Time Remaining: {timeLeft !== null ? formatTimeMMSS(timeLeft) : "00:00"}
             </div>
             
             <Button 
               variant="destructive" 
               size="sm" 
               onClick={handleSubmitExam}
-              loading={isSubmitting}
+              disabled={isSubmitting}
             >
-              Submit Exam
+              {isSubmitting ? "Submitting..." : "Submit Exam"}
             </Button>
           </div>
         </div>
+        
+        {/* Progress bar */}
+        <div className="mt-3">
+          <Progress value={calculateProgress()} className="h-1.5" />
+        </div>
       </div>
       
-      {/* Question Area */}
-      <div className="max-w-4xl mx-auto">
-        <Card variant="default" className="p-8 mb-8">
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={currentQuestion}
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              transition={{ duration: 0.3 }}
-              className="space-y-6"
-            >
-              <div>
-                <h3 className="text-xl font-medium mb-4">
-                  {currentQuestion + 1}. {currentQ.text}
-                </h3>
-                
-                <div className="space-y-3">
-                  {currentQ.options.map((option, index) => (
-                    <div 
-                      key={index}
-                      onClick={() => handleSelectAnswer(currentQ.id, index)}
-                      className={`
-                        flex items-center p-4 rounded-lg border cursor-pointer transition-all
-                        ${answers[currentQ.id] === index 
-                          ? "border-primary bg-primary/5 shadow" 
-                          : "border-input hover:border-primary/50 hover:bg-secondary"}
-                      `}
-                    >
-                      <div 
-                        className={`
-                          w-5 h-5 rounded-full border flex items-center justify-center mr-3
-                          ${answers[currentQ.id] === index 
-                            ? "border-primary bg-primary text-white" 
-                            : "border-input"}
-                        `}
-                      >
-                        {answers[currentQ.id] === index && (
-                          <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-                            <path d="M8.5 2.5L3.5 7.5L1.5 5.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                          </svg>
-                        )}
-                      </div>
-                      <span>{option}</span>
-                    </div>
-                  ))}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+        {/* Question Navigation Sidebar */}
+        <div className="md:col-span-1 order-2 md:order-1">
+          <div className="sticky top-40">
+            <Card className="p-4 mb-4">
+              <h3 className="text-sm font-medium mb-3">Question Navigator</h3>
+              <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-4 gap-2">
+                {examData.questions.map((_, index) => (
+                  <button
+                    key={index}
+                    onClick={() => handleQuestionNavigation(index)}
+                    className={`
+                      w-full aspect-square flex items-center justify-center rounded border text-sm font-medium
+                      ${currentQuestion === index 
+                        ? "bg-primary text-primary-foreground border-primary" 
+                        : answers[examData.questions[index].id] !== -1
+                          ? "bg-secondary text-secondary-foreground border-secondary"
+                          : "bg-background border-input text-muted-foreground hover:border-primary/50"}
+                    `}
+                    aria-label={`Go to question ${index + 1}`}
+                  >
+                    {index + 1}
+                  </button>
+                ))}
+              </div>
+              
+              <div className="mt-4 pt-4 border-t text-sm text-muted-foreground">
+                <div className="flex items-center mb-2">
+                  <div className="w-3 h-3 bg-primary rounded-sm mr-2"></div>
+                  <span>Current Question</span>
+                </div>
+                <div className="flex items-center mb-2">
+                  <div className="w-3 h-3 bg-secondary rounded-sm mr-2"></div>
+                  <span>Answered</span>
+                </div>
+                <div className="flex items-center">
+                  <div className="w-3 h-3 bg-background rounded-sm border border-input mr-2"></div>
+                  <span>Unanswered</span>
                 </div>
               </div>
-            </motion.div>
-          </AnimatePresence>
-        </Card>
+            </Card>
+          </div>
+        </div>
         
-        {/* Navigation Buttons */}
-        <div className="flex justify-between">
-          <Button 
-            variant="outline" 
-            onClick={handlePrevQuestion}
-            disabled={currentQuestion === 0}
-          >
-            Previous
-          </Button>
+        {/* Question Area */}
+        <div className="md:col-span-3 order-1 md:order-2">
+          <Card variant="default" className="p-8 mb-8">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={currentQuestion}
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.3 }}
+                className="space-y-6"
+              >
+                <div>
+                  <h3 className="text-xl font-medium mb-4">
+                    {currentQuestion + 1}. {currentQ.text}
+                  </h3>
+                  
+                  <div className="space-y-3">
+                    {currentQ.options.map((option, index) => (
+                      <div 
+                        key={index}
+                        onClick={() => handleSelectAnswer(currentQ.id, index)}
+                        className={`
+                          flex items-center p-4 rounded-lg border cursor-pointer transition-all
+                          ${answers[currentQ.id] === index 
+                            ? "border-primary bg-primary/5 shadow" 
+                            : "border-input hover:border-primary/50 hover:bg-secondary"}
+                        `}
+                      >
+                        <div 
+                          className={`
+                            w-5 h-5 rounded-full border flex items-center justify-center mr-3
+                            ${answers[currentQ.id] === index 
+                              ? "border-primary bg-primary text-white" 
+                              : "border-input"}
+                          `}
+                        >
+                          {answers[currentQ.id] === index && (
+                            <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                              <path d="M8.5 2.5L3.5 7.5L1.5 5.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                            </svg>
+                          )}
+                        </div>
+                        <span>{option}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </motion.div>
+            </AnimatePresence>
+          </Card>
           
-          <Button 
-            onClick={handleNextQuestion}
-            disabled={currentQuestion === examData.questions.length - 1}
-          >
-            Next
-          </Button>
+          {/* Navigation Buttons */}
+          <div className="flex justify-between">
+            <Button 
+              variant="outline" 
+              onClick={handlePrevQuestion}
+              disabled={currentQuestion === 0}
+            >
+              Previous
+            </Button>
+            
+            <Button 
+              onClick={handleNextQuestion}
+              disabled={currentQuestion === examData.questions.length - 1}
+            >
+              Next
+            </Button>
+          </div>
         </div>
       </div>
     </DashboardLayout>

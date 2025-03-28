@@ -1,18 +1,19 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui-custom/Card";
 import { Button } from "@/components/ui-custom/Button";
-import { getCurrentUser } from "@/lib/auth";
+import { Progress } from "@/components/ui/progress";
 import { getExamById, getSubmission } from "@/lib/exam";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
+import { formatDate, calculateTimeDifference } from "@/utils/dateUtils";
+import { useAuth } from "@/hooks/useAuth";
 
 const Results = () => {
   const navigate = useNavigate();
   const { examId } = useParams<{ examId: string }>();
-  const user = getCurrentUser();
+  const { profile, isLoading: isAuthLoading } = useAuth();
   
   const [isLoading, setIsLoading] = useState(true);
   const [examData, setExamData] = useState<any>(null);
@@ -20,12 +21,16 @@ const Results = () => {
   
   // Check authentication
   useEffect(() => {
-    if (!user) {
+    if (isAuthLoading) return;
+    
+    if (!profile) {
+      toast.error("Please log in to view results");
       navigate("/login");
       return;
     }
     
     if (!examId) {
+      toast.error("No exam selected");
       navigate("/dashboard");
       return;
     }
@@ -35,7 +40,7 @@ const Results = () => {
       try {
         const [exam, submissionData] = await Promise.all([
           getExamById(examId),
-          getSubmission(user.id, examId)
+          getSubmission(profile.id, examId)
         ]);
         
         if (!exam) {
@@ -61,7 +66,7 @@ const Results = () => {
     };
     
     fetchData();
-  }, [user, examId, navigate]);
+  }, [profile, examId, navigate, isAuthLoading]);
   
   if (isLoading || !examData || !submission) {
     return (
@@ -79,35 +84,6 @@ const Results = () => {
     if (percentage >= 60) return "text-blue-600";
     if (percentage >= 40) return "text-yellow-600";
     return "text-red-600";
-  };
-  
-  // Format date
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { 
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-  };
-  
-  // Calculate time taken
-  const calculateTimeTaken = () => {
-    const start = new Date(submission.startedAt).getTime();
-    const end = new Date(submission.submittedAt).getTime();
-    const diffInMinutes = Math.round((end - start) / (1000 * 60));
-    
-    const hours = Math.floor(diffInMinutes / 60);
-    const minutes = diffInMinutes % 60;
-    
-    if (hours > 0) {
-      return `${hours} hour${hours > 1 ? 's' : ''} ${minutes} minute${minutes !== 1 ? 's' : ''}`;
-    }
-    
-    return `${minutes} minute${minutes !== 1 ? 's' : ''}`;
   };
 
   return (
@@ -165,7 +141,7 @@ const Results = () => {
               </div>
               <div className="p-4 bg-secondary rounded-lg">
                 <p className="text-xs text-muted-foreground mb-1">Time Taken</p>
-                <p className="font-medium">{calculateTimeTaken()}</p>
+                <p className="font-medium">{calculateTimeDifference(submission.startedAt, submission.submittedAt)}</p>
               </div>
               <div className="p-4 bg-secondary rounded-lg">
                 <p className="text-xs text-muted-foreground mb-1">Questions Answered</p>

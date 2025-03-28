@@ -4,8 +4,8 @@ import { useNavigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui-custom/Card";
 import { Button } from "@/components/ui-custom/Button";
-import { getCurrentUser } from "@/lib/auth";
 import { toast } from "sonner";
+import { useAuth } from "@/hooks/useAuth";
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
   PieChart, Pie, Cell
@@ -43,18 +43,20 @@ const COLORS = ["#8884d8", "#82ca9d", "#ffc658", "#ff8042", "#0088FE"];
 
 const Reports = () => {
   const navigate = useNavigate();
-  const user = getCurrentUser();
+  const { profile, isLoading: isAuthLoading } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
   const [selectedTab, setSelectedTab] = useState<'overview' | 'exams' | 'students'>('overview');
   
   // Check authentication
   useEffect(() => {
-    if (!user) {
+    if (isAuthLoading) return;
+    
+    if (!profile) {
       navigate("/admin/login");
       return;
     }
     
-    if (user.role !== "admin") {
+    if (profile.role !== "admin") {
       toast.error("You do not have permission to access this page");
       navigate("/login");
       return;
@@ -64,9 +66,9 @@ const Reports = () => {
     setTimeout(() => {
       setIsLoading(false);
     }, 800);
-  }, [user, navigate]);
+  }, [profile, navigate, isAuthLoading]);
   
-  if (isLoading) {
+  if (isLoading || isAuthLoading) {
     return (
       <DashboardLayout title="Reports & Analytics" subtitle="Loading report data...">
         <div className="flex justify-center py-16">

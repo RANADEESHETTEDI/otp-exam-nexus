@@ -2,7 +2,7 @@
 import { HTMLAttributes, forwardRef } from "react";
 import { VariantProps, cva } from "class-variance-authority";
 import { cn } from "@/lib/utils";
-import { motion } from "framer-motion";
+import { motion, HTMLMotionProps } from "framer-motion";
 
 const cardVariants = cva(
   "rounded-xl overflow-hidden transition-all duration-300",
@@ -36,23 +36,29 @@ export interface CardProps
 
 const Card = forwardRef<HTMLDivElement, CardProps>(
   ({ className, variant, hover, animate = false, children, ...props }, ref) => {
-    const CardComponent = animate ? motion.div : "div";
-    
-    const animateProps = animate ? {
-      initial: { opacity: 0, y: 10 },
-      animate: { opacity: 1, y: 0 },
-      transition: { duration: 0.4 },
-    } : {};
+    if (animate) {
+      return (
+        <motion.div
+          ref={ref}
+          className={cn(cardVariants({ variant, hover, className }))}
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+          {...props as unknown as HTMLMotionProps<"div">}
+        >
+          {children}
+        </motion.div>
+      );
+    }
     
     return (
-      <CardComponent
+      <div
         ref={ref}
         className={cn(cardVariants({ variant, hover, className }))}
-        {...animateProps}
         {...props}
       >
         {children}
-      </CardComponent>
+      </div>
     );
   }
 );

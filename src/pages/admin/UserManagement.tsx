@@ -1,15 +1,13 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card, CardHeader, CardTitle } from "@/components/ui-custom/Card";
 import { Button } from "@/components/ui-custom/Button";
 import { Input } from "@/components/ui-custom/Input";
-import { getCurrentUser } from "@/lib/auth";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
+import { useAuth } from "@/hooks/useAuth";
 
-// Mock user data
 interface User {
   id: string;
   name: string;
@@ -72,7 +70,7 @@ const mockUsers: User[] = [
 
 const UserManagement = () => {
   const navigate = useNavigate();
-  const user = getCurrentUser();
+  const { profile, isLoading: isAuthLoading } = useAuth();
   
   const [users, setUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -88,23 +86,22 @@ const UserManagement = () => {
     email: ""
   });
   
-  // Check authentication
   useEffect(() => {
-    if (!user) {
+    if (isAuthLoading) return;
+    
+    if (!profile) {
       navigate("/admin/login");
       return;
     }
     
-    if (user.role !== "admin") {
+    if (profile.role !== "admin") {
       toast.error("You do not have permission to access this page");
       navigate("/login");
       return;
     }
     
-    // Fetch users (mock)
     const fetchUsers = async () => {
       try {
-        // Simulate API delay
         await new Promise(resolve => setTimeout(resolve, 800));
         setUsers(mockUsers);
       } catch (error) {
@@ -115,9 +112,8 @@ const UserManagement = () => {
     };
     
     fetchUsers();
-  }, [user, navigate]);
+  }, [profile, navigate, isAuthLoading]);
   
-  // Format date
   const formatDate = (dateString: string): string => {
     if (!dateString) return "Never";
     
@@ -131,7 +127,6 @@ const UserManagement = () => {
     });
   };
   
-  // Filter users based on search term
   const filteredUsers = users.filter(user => {
     const searchLower = searchTerm.toLowerCase();
     return (
@@ -142,12 +137,9 @@ const UserManagement = () => {
     );
   });
   
-  // Add new user
   const handleAddUser = () => {
-    // Reset errors
     setErrors({ name: "", email: "" });
     
-    // Validate form
     let hasError = false;
     
     if (!newUser.name.trim()) {
@@ -165,7 +157,6 @@ const UserManagement = () => {
     
     if (hasError) return;
     
-    // Add user (mock)
     const addedUser: User = {
       id: `user-${Math.floor(Math.random() * 1000)}`,
       name: newUser.name,
@@ -182,7 +173,6 @@ const UserManagement = () => {
     toast.success(`User ${addedUser.name} has been added successfully`);
   };
   
-  // Change user status
   const handleChangeStatus = (userId: string, newStatus: 'active' | 'pending' | 'disabled') => {
     setUsers(prev => 
       prev.map(user => 
@@ -196,7 +186,6 @@ const UserManagement = () => {
     toast.success(`${userName}'s status updated to ${newStatus}`);
   };
   
-  // Delete user
   const handleDeleteUser = (userId: string) => {
     if (window.confirm("Are you sure you want to delete this user?")) {
       setUsers(prev => prev.filter(user => user.id !== userId));
@@ -204,7 +193,7 @@ const UserManagement = () => {
     }
   };
 
-  if (isLoading) {
+  if (isLoading || isAuthLoading) {
     return (
       <DashboardLayout title="User Management" subtitle="Loading users...">
         <div className="flex justify-center py-16">
@@ -219,7 +208,6 @@ const UserManagement = () => {
       title="User Management"
       subtitle="Add and manage user accounts"
     >
-      {/* Search and Add User */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
         <div className="w-full sm:w-auto sm:min-w-[300px]">
           <Input
@@ -234,7 +222,6 @@ const UserManagement = () => {
         </Button>
       </div>
       
-      {/* User Table */}
       <Card>
         <div className="overflow-x-auto">
           <table className="w-full">
@@ -310,7 +297,6 @@ const UserManagement = () => {
         </div>
       </Card>
       
-      {/* Add User Modal */}
       {showAddUserModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <motion.div
