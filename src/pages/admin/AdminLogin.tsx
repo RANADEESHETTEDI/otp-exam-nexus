@@ -22,10 +22,12 @@ const AdminLogin = () => {
   });
   const [formLoading, setFormLoading] = useState(false);
   const [redirectProgress, setRedirectProgress] = useState(0);
+  const [loginAttempted, setLoginAttempted] = useState(false);
 
   // Redirect if already logged in
   useEffect(() => {
     if (session && profile && !isLoading) {
+      console.log("Admin logged in, redirecting...", { profile, session });
       // Start progress animation
       const interval = setInterval(() => {
         setRedirectProgress(prev => {
@@ -75,6 +77,7 @@ const AdminLogin = () => {
     setFormLoading(true);
     
     try {
+      setLoginAttempted(true);
       const result = await loginUser(email, password);
       
       if (result.success) {

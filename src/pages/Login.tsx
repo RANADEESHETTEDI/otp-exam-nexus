@@ -20,16 +20,18 @@ const Login = () => {
   });
   const [formLoading, setFormLoading] = useState(false);
   const [redirectProgress, setRedirectProgress] = useState(0);
+  const [loginAttempted, setLoginAttempted] = useState(false);
 
   // Redirect if already logged in
   useEffect(() => {
     if (session && profile && !isLoading) {
+      console.log("Logged in, redirecting...", { profile, session });
       // Start progress animation
       const interval = setInterval(() => {
         setRedirectProgress(prev => {
           if (prev >= 100) {
             clearInterval(interval);
-            // Redirect based on role
+            // Redirect based on role with replace to prevent going back to login
             if (profile.role === 'admin') {
               navigate("/admin/dashboard", { replace: true });
             } else {
@@ -70,6 +72,7 @@ const Login = () => {
     setFormLoading(true);
     
     try {
+      setLoginAttempted(true);
       const result = await loginUser(email, password);
       
       if (result.success) {

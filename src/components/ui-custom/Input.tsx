@@ -1,5 +1,5 @@
 
-import { InputHTMLAttributes, forwardRef, useState } from "react";
+import { InputHTMLAttributes, forwardRef, useState, ReactNode } from "react";
 import { VariantProps, cva } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
@@ -31,10 +31,11 @@ export interface InputProps
   label?: string;
   error?: string;
   animate?: boolean;
+  leftIcon?: ReactNode;
 }
 
 const Input = forwardRef<HTMLInputElement, InputProps>(
-  ({ className, variant, inputSize, label, error, animate = false, ...props }, ref) => {
+  ({ className, variant, inputSize, label, error, animate = false, leftIcon, ...props }, ref) => {
     const [isFocused, setIsFocused] = useState(false);
     const Wrapper = animate ? motion.div : "div";
     
@@ -60,9 +61,16 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
         )}
         
         <div className="relative">
+          {leftIcon && (
+            <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center pointer-events-none">
+              {leftIcon}
+            </div>
+          )}
+          
           <input
             className={cn(
-              inputVariants({ variant: error ? "error" : variant, inputSize, className })
+              inputVariants({ variant: error ? "error" : variant, inputSize, className }),
+              leftIcon && "pl-9"
             )}
             ref={ref}
             onFocus={(e) => {
