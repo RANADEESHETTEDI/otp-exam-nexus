@@ -1,30 +1,24 @@
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui-custom/Button";
-import { useAuth } from "@/hooks/useAuth";
+import { getCurrentUser } from "@/lib/auth";
 
 const Index = () => {
   const navigate = useNavigate();
-  const { profile, isLoading } = useAuth();
-  const [redirecting, setRedirecting] = useState(false);
+  const user = getCurrentUser();
   
   useEffect(() => {
     // If user is already logged in, redirect to dashboard
-    if (profile && !isLoading) {
-      setRedirecting(true);
-      const timer = setTimeout(() => {
-        if (profile.role === 'admin') {
-          navigate('/admin/dashboard');
-        } else {
-          navigate('/dashboard');
-        }
-      }, 1000); // Slight delay for better user experience
-      
-      return () => clearTimeout(timer);
+    if (user) {
+      if (user.role === 'admin') {
+        navigate('/admin/dashboard');
+      } else {
+        navigate('/dashboard');
+      }
     }
-  }, [profile, navigate, isLoading]);
+  }, [user, navigate]);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background to-secondary flex flex-col">
@@ -44,25 +38,19 @@ const Index = () => {
             >
               Admin
             </Link>
-            <Link to="/login">
-              <Button size="sm">
-                Sign In
-              </Button>
-            </Link>
+            <Button 
+              as={Link}
+              to="/login"
+              size="sm"
+            >
+              Sign In
+            </Button>
           </div>
         </div>
       </header>
       
       {/* Hero Section */}
-      <section className="flex-1 flex flex-col items-center justify-center container mx-auto px-4 py-12 relative">
-        {redirecting && (
-          <div className="absolute top-0 left-0 w-full z-10 bg-background/80 backdrop-blur-sm p-3 text-center animate-pulse">
-            <p className="text-primary font-medium">
-              Welcome back, {profile?.name || 'user'}! Redirecting to your dashboard...
-            </p>
-          </div>
-        )}
-        
+      <section className="flex-1 flex flex-col items-center justify-center container mx-auto px-4 py-12">
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -103,28 +91,28 @@ const Index = () => {
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.98 }}
             >
-              <Link to="/login">
-                <Button 
-                  size="lg"
-                  className="px-8 py-3 rounded-xl"
-                >
-                  Get Started
-                </Button>
-              </Link>
+              <Button 
+                as={Link}
+                to="/login"
+                size="lg"
+                className="px-8 py-3 rounded-xl"
+              >
+                Get Started
+              </Button>
             </motion.div>
             <motion.div
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.98 }}
             >
-              <Link to="/admin/login">
-                <Button 
-                  size="lg"
-                  variant="outline"
-                  className="px-8 py-3 rounded-xl"
-                >
-                  Admin Portal
-                </Button>
-              </Link>
+              <Button 
+                as={Link}
+                to="/admin/login"
+                size="lg"
+                variant="outline"
+                className="px-8 py-3 rounded-xl"
+              >
+                Admin Portal
+              </Button>
             </motion.div>
           </div>
         </motion.div>

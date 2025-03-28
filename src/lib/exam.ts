@@ -1,14 +1,5 @@
 
-import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
-import { supabase } from '@/integrations/supabase/client';
-
-export interface College {
-  id: string;
-  name: string;
-  code: string;
-  created_at: string;
-}
+// Mock exam data and functions
 
 export interface Question {
   id: string;
@@ -28,8 +19,6 @@ export interface Exam {
   startTime: string;
   endTime: string;
   status: 'upcoming' | 'active' | 'completed';
-  collegeId?: string;
-  collegeName?: string;
 }
 
 export interface ExamSubmission {
@@ -43,418 +32,178 @@ export interface ExamSubmission {
   percentage: number;
 }
 
-export interface ExamProgress {
-  examId: string;
-  currentQuestion: number;
-  answers: Record<string, number>;
-  timeRemaining: number | null;
-  startedAt: string;
-}
-
-// Create a store for exam progress
-interface ExamStore {
-  examProgress: Record<string, ExamProgress>;
-  updateExamProgress: (userId: string, examId: string, progress: Partial<ExamProgress>) => void;
-  getExamProgress: (userId: string, examId: string) => ExamProgress | null;
-  clearExamProgress: (userId: string, examId: string) => void;
-}
-
-// Zustand store for exam progress
-export const useExamStore = create<ExamStore>()(
-  persist(
-    (set, get) => ({
-      examProgress: {},
-      
-      updateExamProgress: (userId: string, examId: string, progress: Partial<ExamProgress>) => {
-        set(state => {
-          const key = `${userId}|${examId}`;
-          const existingProgress = state.examProgress[key] || {
-            examId,
-            currentQuestion: 0,
-            answers: {},
-            timeRemaining: null,
-            startedAt: new Date().toISOString()
-          };
-          
-          return {
-            examProgress: {
-              ...state.examProgress,
-              [key]: {
-                ...existingProgress,
-                ...progress
-              }
-            }
-          };
-        });
+// Mock exams
+const mockExams: Exam[] = [
+  {
+    id: "exam-001",
+    title: "Web Development Fundamentals",
+    description: "Test your knowledge of HTML, CSS, and JavaScript basics.",
+    duration: 45,
+    totalMarks: 100,
+    startTime: new Date(Date.now() + 1000 * 60 * 60 * 24).toISOString(), // tomorrow
+    endTime: new Date(Date.now() + 1000 * 60 * 60 * 25).toISOString(), // tomorrow + 1hr
+    status: "upcoming",
+    questions: [
+      {
+        id: "q1",
+        text: "What does HTML stand for?",
+        options: [
+          "Hyper Text Markup Language",
+          "High Tech Machine Learning",
+          "Hyperlink and Text Markup Language",
+          "Home Tool Markup Language"
+        ],
+        correctOption: 0,
+        marks: 10
       },
-      
-      getExamProgress: (userId: string, examId: string) => {
-        const key = `${userId}|${examId}`;
-        return get().examProgress[key] || null;
+      {
+        id: "q2",
+        text: "Which CSS property is used to change the text color?",
+        options: [
+          "text-color",
+          "font-color",
+          "color",
+          "text-style"
+        ],
+        correctOption: 2,
+        marks: 10
       },
-      
-      clearExamProgress: (userId: string, examId: string) => {
-        set(state => {
-          const key = `${userId}|${examId}`;
-          const newExamProgress = { ...state.examProgress };
-          delete newExamProgress[key];
-          
-          return {
-            examProgress: newExamProgress
-          };
-        });
-      }
-    }),
-    {
-      name: 'exam-progress-storage',
-      partialize: (state) => ({ examProgress: state.examProgress }),
-    }
-  )
-);
-
-// Save exam progress
-export const saveExamProgress = (
-  userId: string,
-  examId: string,
-  progress: Partial<ExamProgress>
-): void => {
-  useExamStore.getState().updateExamProgress(userId, examId, progress);
-};
-
-// Get exam progress
-export const getExamProgress = (
-  userId: string,
-  examId: string
-): ExamProgress | null => {
-  return useExamStore.getState().getExamProgress(userId, examId);
-};
-
-// Clear exam progress
-export const clearExamProgress = (
-  userId: string,
-  examId: string
-): void => {
-  useExamStore.getState().clearExamProgress(userId, examId);
-};
-
-// Fetch all colleges
-export const getColleges = async (): Promise<College[]> => {
-  try {
-    const { data: colleges, error } = await supabase
-      .from('colleges')
-      .select('*');
-    
-    if (error) {
-      throw error;
-    }
-    
-    return colleges || [];
-  } catch (error) {
-    console.error("Error fetching colleges:", error);
-    throw error;
+      // More questions...
+    ]
+  },
+  {
+    id: "exam-002",
+    title: "Data Structures & Algorithms",
+    description: "Test your understanding of fundamental algorithms and data structures.",
+    duration: 60,
+    totalMarks: 100,
+    startTime: new Date().toISOString(), // now
+    endTime: new Date(Date.now() + 1000 * 60 * 60 * 2).toISOString(), // now + 2hrs
+    status: "active",
+    questions: [
+      {
+        id: "q1",
+        text: "What is the time complexity of binary search?",
+        options: [
+          "O(1)",
+          "O(n)",
+          "O(log n)",
+          "O(n log n)"
+        ],
+        correctOption: 2,
+        marks: 10
+      },
+      // More questions...
+    ]
+  },
+  {
+    id: "exam-003",
+    title: "Database Management",
+    description: "Test your knowledge of SQL and database concepts.",
+    duration: 30,
+    totalMarks: 50,
+    startTime: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(), // yesterday
+    endTime: new Date(Date.now() - 1000 * 60 * 60 * 23).toISOString(), // yesterday + 1hr
+    status: "completed",
+    questions: [
+      {
+        id: "q1",
+        text: "What does SQL stand for?",
+        options: [
+          "Structured Query Language",
+          "Simple Query Language",
+          "Sequential Query Language",
+          "Standard Query Language"
+        ],
+        correctOption: 0,
+        marks: 10
+      },
+      // More questions...
+    ]
   }
-};
+];
 
-// Fetch college by ID
-export const getCollegeById = async (collegeId: string): Promise<College | null> => {
-  try {
-    const { data, error } = await supabase
-      .from('colleges')
-      .select('*')
-      .eq('id', collegeId)
-      .maybeSingle();
-    
-    if (error) {
-      throw error;
-    }
-    
-    return data;
-  } catch (error) {
-    console.error("Error fetching college:", error);
-    throw error;
+// Mock submissions
+const mockSubmissions: ExamSubmission[] = [
+  {
+    examId: "exam-003",
+    userId: "user-001",
+    answers: { "q1": 0 },
+    startedAt: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
+    submittedAt: new Date(Date.now() - 1000 * 60 * 60 * 23.5).toISOString(),
+    score: 45,
+    totalMarks: 50,
+    percentage: 90
   }
+];
+
+// Get all exams
+export const getExams = async (): Promise<Exam[]> => {
+  // Simulate API delay
+  await new Promise(resolve => setTimeout(resolve, 800));
+  return mockExams;
 };
 
-// Fetch all exams
-export const getExams = async (collegeId?: string): Promise<Exam[]> => {
-  try {
-    let query = supabase
-      .from('exams')
-      .select('*, colleges(name)');
-    
-    if (collegeId) {
-      query = query.eq('college_id', collegeId);
-    }
-    
-    const { data: exams, error } = await query;
-    
-    if (error) {
-      throw error;
-    }
-    
-    if (!exams) {
-      return [];
-    }
-    
-    // Fetch questions for each exam
-    const examsWithQuestions = await Promise.all(
-      exams.map(async (exam) => {
-        const { data: questions, error: questionsError } = await supabase
-          .from('questions')
-          .select('*')
-          .eq('exam_id', exam.id);
-        
-        if (questionsError) {
-          console.error('Error fetching questions:', questionsError);
-          return {
-            id: exam.id,
-            title: exam.title,
-            description: exam.title, // Using title as description
-            duration: exam.duration,
-            totalMarks: 0,
-            questions: [],
-            startTime: exam.start_time,
-            endTime: exam.end_time,
-            status: getExamStatus(exam.start_time, exam.end_time),
-            collegeId: exam.college_id,
-            collegeName: exam.colleges?.name
-          };
-        }
-        
-        const formattedQuestions: Question[] = questions?.map(q => ({
-          id: q.id,
-          text: q.question,
-          options: q.options,
-          correctOption: q.correct_answer,
-          marks: 10 // Default marks per question
-        })) || [];
-        
-        return {
-          id: exam.id,
-          title: exam.title,
-          description: exam.title, // Using title as description
-          duration: exam.duration,
-          totalMarks: formattedQuestions.length * 10, // Each question is worth 10 marks
-          startTime: exam.start_time,
-          endTime: exam.end_time,
-          status: getExamStatus(exam.start_time, exam.end_time),
-          questions: formattedQuestions,
-          collegeId: exam.college_id,
-          collegeName: exam.colleges?.name
-        };
-      })
-    );
-    
-    return examsWithQuestions;
-  } catch (error) {
-    console.error("Error fetching exams:", error);
-    throw error;
-  }
-};
-
-// Fetch a specific exam by ID
+// Get exam by ID
 export const getExamById = async (examId: string): Promise<Exam | null> => {
-  try {
-    const { data: exam, error } = await supabase
-      .from('exams')
-      .select('*, colleges(name)')
-      .eq('id', examId)
-      .single();
-    
-    if (error) {
-      throw error;
-    }
-    
-    if (!exam) {
-      return null;
-    }
-    
-    // Fetch questions for the exam
-    const { data: questions, error: questionsError } = await supabase
-      .from('questions')
-      .select('*')
-      .eq('exam_id', examId);
-    
-    if (questionsError) {
-      console.error('Error fetching questions:', questionsError);
-      return null;
-    }
-    
-    const formattedQuestions: Question[] = questions?.map(q => ({
-      id: q.id,
-      text: q.question,
-      options: q.options,
-      correctOption: q.correct_answer,
-      marks: 10 // Default marks per question
-    })) || [];
-    
-    return {
-      id: exam.id,
-      title: exam.title,
-      description: exam.title, // Using title as description
-      duration: exam.duration,
-      totalMarks: formattedQuestions.length * 10, // Each question is worth 10 marks
-      startTime: exam.start_time,
-      endTime: exam.end_time,
-      status: getExamStatus(exam.start_time, exam.end_time),
-      questions: formattedQuestions,
-      collegeId: exam.college_id,
-      collegeName: exam.colleges?.name
-    };
-  } catch (error) {
-    console.error("Error fetching exam:", error);
-    throw error;
-  }
+  // Simulate API delay
+  await new Promise(resolve => setTimeout(resolve, 500));
+  return mockExams.find(exam => exam.id === examId) || null;
 };
 
-// Submit exam answers
+// Submit exam
 export const submitExam = async (
   examId: string,
   userId: string,
   answers: Record<string, number>,
   startedAt: string
 ): Promise<ExamSubmission> => {
-  try {
-    // Fetch exam questions to calculate score
-    const exam = await getExamById(examId);
-    
-    if (!exam) {
-      throw new Error("Exam not found");
-    }
-    
-    // Calculate score
-    let score = 0;
-    let totalMarks = 0;
-    
-    for (const question of exam.questions) {
-      totalMarks += question.marks;
-      if (answers[question.id] === question.correctOption) {
-        score += question.marks;
-      }
-    }
-    
-    const percentage = Math.round((score / totalMarks) * 100);
-    
-    // Save submission to Supabase
-    const { data, error } = await supabase
-      .from('submissions')
-      .insert({
-        exam_id: examId,
-        user_id: userId,
-        answers,
-        score,
-        submitted_at: new Date().toISOString()
-      })
-      .select('*')
-      .single();
-    
-    if (error) {
-      throw error;
-    }
-    
-    // Clear progress after submission
-    clearExamProgress(userId, examId);
-    
-    return {
-      examId,
-      userId,
-      answers,
-      startedAt,
-      submittedAt: new Date().toISOString(),
-      score,
-      totalMarks,
-      percentage
-    };
-  } catch (error) {
-    console.error("Error submitting exam:", error);
-    throw error;
+  // Simulate API delay
+  await new Promise(resolve => setTimeout(resolve, 1200));
+  
+  const exam = mockExams.find(e => e.id === examId);
+  
+  if (!exam) {
+    throw new Error("Exam not found");
   }
+  
+  // Calculate score
+  let score = 0;
+  let totalMarks = 0;
+  
+  for (const question of exam.questions) {
+    totalMarks += question.marks;
+    if (answers[question.id] === question.correctOption) {
+      score += question.marks;
+    }
+  }
+  
+  const percentage = Math.round((score / totalMarks) * 100);
+  
+  const submission: ExamSubmission = {
+    examId,
+    userId,
+    answers,
+    startedAt,
+    submittedAt: new Date().toISOString(),
+    score,
+    totalMarks,
+    percentage
+  };
+  
+  // In a real app, this would be saved to a database
+  
+  return submission;
 };
 
-// Fetch submission for a specific exam and user
+// Get submission by user and exam
 export const getSubmission = async (
   userId: string,
   examId: string
 ): Promise<ExamSubmission | null> => {
-  try {
-    const { data, error } = await supabase
-      .from('submissions')
-      .select('*')
-      .eq('user_id', userId)
-      .eq('exam_id', examId)
-      .maybeSingle();
-    
-    if (error) {
-      throw error;
-    }
-    
-    if (!data) {
-      return null;
-    }
-    
-    const exam = await getExamById(examId);
-    
-    if (!exam) {
-      throw new Error("Exam not found");
-    }
-    
-    return {
-      examId: data.exam_id,
-      userId: data.user_id,
-      answers: data.answers as Record<string, number>,
-      startedAt: data.submitted_at, // We don't have a startedAt field, using submittedAt
-      submittedAt: data.submitted_at,
-      score: data.score,
-      totalMarks: exam.totalMarks,
-      percentage: Math.round((data.score / exam.totalMarks) * 100)
-    };
-  } catch (error) {
-    console.error("Error fetching submission:", error);
-    throw error;
-  }
-};
-
-// Check for exams that need to be auto-submitted (time expired)
-export const checkAndAutoSubmitExams = async (userId: string): Promise<void> => {
-  try {
-    // Get all exam progress for user
-    const allProgress = useExamStore.getState().examProgress;
-    
-    for (const key in allProgress) {
-      if (key.startsWith(`${userId}|`)) {
-        const examId = key.split('|')[1];
-        const progress = allProgress[key];
-        
-        // Check if time has expired
-        if (progress.timeRemaining !== null && progress.timeRemaining <= 0) {
-          // Auto-submit the exam
-          const answers = { ...progress.answers };
-          
-          try {
-            await submitExam(examId, userId, answers, progress.startedAt);
-            console.log(`Auto-submitted exam ${examId} for user ${userId}`);
-          } catch (submitError) {
-            console.error(`Failed to auto-submit exam ${examId}:`, submitError);
-          }
-        }
-      }
-    }
-  } catch (error) {
-    console.error("Error checking for auto-submissions:", error);
-  }
-};
-
-// Helper function to determine exam status
-const getExamStatus = (startTime: string, endTime: string): 'upcoming' | 'active' | 'completed' => {
-  const now = new Date().getTime();
-  const start = new Date(startTime).getTime();
-  const end = new Date(endTime).getTime();
-  
-  if (now < start) {
-    return 'upcoming';
-  } else if (now >= start && now <= end) {
-    return 'active';
-  } else {
-    return 'completed';
-  }
+  // Simulate API delay
+  await new Promise(resolve => setTimeout(resolve, 500));
+  return mockSubmissions.find(
+    submission => submission.userId === userId && submission.examId === examId
+  ) || null;
 };

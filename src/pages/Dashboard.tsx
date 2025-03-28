@@ -4,49 +4,60 @@ import { useNavigate, Link } from "react-router-dom";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui-custom/Card";
 import { Button } from "@/components/ui-custom/Button";
-import { useAuth } from "@/hooks/useAuth";
-import { fetchExams } from "@/services/examService";
-import { Exam } from "@/lib/exam";
+import { getCurrentUser } from "@/lib/auth";
+import { getExams, Exam } from "@/lib/exam";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
-import { formatDate } from "@/utils/dateUtils";
 
 const Dashboard = () => {
   const navigate = useNavigate();
-  const { profile, session } = useAuth();
+  const user = getCurrentUser();
   const [exams, setExams] = useState<Exam[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
+  // Check authentication
   useEffect(() => {
-    if (!session) {
+    if (!user) {
       navigate("/login");
       return;
     }
     
-    if (profile?.role === "admin") {
+    if (user.role === "admin") {
       navigate("/admin/dashboard");
       return;
     }
     
-    const loadExams = async () => {
+    // Fetch exams
+    const fetchExams = async () => {
       try {
-        const data = await fetchExams();
+        const data = await getExams();
         setExams(data);
       } catch (error) {
-        console.error("Error loading exams:", error);
         toast.error("Failed to load exams. Please try again.");
       } finally {
         setIsLoading(false);
       }
     };
     
-    loadExams();
-  }, [profile, session, navigate]);
+    fetchExams();
+  }, [user, navigate]);
   
+  // Categorize exams
   const upcomingExams = exams.filter(exam => exam.status === "upcoming");
   const activeExams = exams.filter(exam => exam.status === "active");
   const completedExams = exams.filter(exam => exam.status === "completed");
   
+  // Format date
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { 
+      month: 'short', 
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
   if (isLoading) {
     return (
       <DashboardLayout title="Dashboard" subtitle="Loading your exams...">
@@ -60,7 +71,7 @@ const Dashboard = () => {
   return (
     <DashboardLayout
       title="Student Dashboard"
-      subtitle={`Welcome back, ${profile?.name || 'Student'}`}
+      subtitle={`Welcome back, ${user?.name || 'Student'}`}
     >
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
         <StatsCard 
@@ -83,6 +94,7 @@ const Dashboard = () => {
         />
       </div>
       
+      {/* Active Exams */}
       <section className="mb-12">
         <h2 className="text-2xl font-medium mb-6">Active Exams</h2>
         
@@ -106,6 +118,7 @@ const Dashboard = () => {
         )}
       </section>
       
+      {/* Upcoming Exams */}
       <section className="mb-12">
         <h2 className="text-2xl font-medium mb-6">Upcoming Exams</h2>
         
@@ -128,6 +141,7 @@ const Dashboard = () => {
         )}
       </section>
       
+      {/* Completed Exams */}
       <section>
         <h2 className="text-2xl font-medium mb-6">Completed Exams</h2>
         
@@ -153,6 +167,7 @@ const Dashboard = () => {
   );
 };
 
+// Stats Card Component
 interface StatsCardProps {
   title: string;
   value: string;
@@ -183,6 +198,7 @@ const StatsCard = ({ title, value, description, variant = "default" }: StatsCard
   </motion.div>
 );
 
+// Exam Card Component
 interface ExamCardProps {
   exam: Exam;
   index: number;
@@ -197,7 +213,7 @@ const ExamCard = ({ exam, index, actionLabel, actionLink, highlightAction = fals
     animate={{ opacity: 1, y: 0 }}
     transition={{ duration: 0.4, delay: index * 0.1 }}
   >
-    <Card hover={true} className="overflow-hidden">
+    <Card hover="true" className="overflow-hidden">
       <div className="flex flex-col md:flex-row">
         <div className="flex-1 p-6">
           <div className="mb-2">
@@ -232,14 +248,14 @@ const ExamCard = ({ exam, index, actionLabel, actionLink, highlightAction = fals
             </div>
           </div>
           
-          <Link to={actionLink}>
-            <Button
-              variant={highlightAction ? "default" : "outline"}
-              size="sm"
-            >
-              {actionLabel}
-            </Button>
-          </Link>
+          <Button
+            as={Link}
+            to={actionLink}
+            variant={highlightAction ? "default" : "outline"}
+            size="sm"
+          >
+            {actionLabel}
+          </Button>
         </div>
         
         {exam.status === "active" && (

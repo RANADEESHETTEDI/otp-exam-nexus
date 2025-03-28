@@ -4,14 +4,14 @@ import { useNavigate, Link } from "react-router-dom";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui-custom/Card";
 import { Button } from "@/components/ui-custom/Button";
+import { getCurrentUser } from "@/lib/auth";
 import { getExams, Exam } from "@/lib/exam";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
-import { useAuth } from "@/hooks/useAuth";
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
-  const { profile, isLoading: isAuthLoading } = useAuth();
+  const user = getCurrentUser();
   const [exams, setExams] = useState<Exam[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
@@ -25,14 +25,12 @@ const AdminDashboard = () => {
   
   // Check authentication
   useEffect(() => {
-    if (isAuthLoading) return;
-    
-    if (!profile) {
+    if (!user) {
       navigate("/admin/login");
       return;
     }
     
-    if (profile.role !== "admin") {
+    if (user.role !== "admin") {
       toast.error("You do not have permission to access this page");
       navigate("/login");
       return;
@@ -51,9 +49,9 @@ const AdminDashboard = () => {
     };
     
     fetchExams();
-  }, [profile, navigate, isAuthLoading]);
+  }, [user, navigate]);
   
-  if (isLoading || isAuthLoading) {
+  if (isLoading) {
     return (
       <DashboardLayout title="Admin Dashboard" subtitle="Loading dashboard data...">
         <div className="flex justify-center py-16">
@@ -66,7 +64,7 @@ const AdminDashboard = () => {
   return (
     <DashboardLayout
       title="Admin Dashboard"
-      subtitle={`Welcome back, ${profile?.name || 'Administrator'}`}
+      subtitle={`Welcome back, ${user?.name || 'Administrator'}`}
     >
       {/* Stats Overview */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
@@ -168,11 +166,9 @@ const AdminDashboard = () => {
       <div className="mb-12">
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-2xl font-medium">Recent Exams</h2>
-          <Link to="/admin/exams">
-            <Button variant="outline" size="sm">
-              View All
-            </Button>
-          </Link>
+          <Button variant="outline" size="sm" as={Link} to="/admin/exams">
+            View All
+          </Button>
         </div>
         
         <div className="grid grid-cols-1 gap-6">
@@ -183,7 +179,7 @@ const AdminDashboard = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.4, delay: index * 0.1 }}
             >
-              <Card hover={true}>
+              <Card hover="true">
                 <div className="flex flex-col md:flex-row">
                   <div className="flex-1 p-6">
                     <div className="mb-2">
@@ -221,11 +217,14 @@ const AdminDashboard = () => {
                       </div>
                     </div>
                     
-                    <Link to={`/admin/exams?id=${exam.id}`}>
-                      <Button variant="outline" size="sm">
-                        Manage Exam
-                      </Button>
-                    </Link>
+                    <Button
+                      as={Link}
+                      to={`/admin/exams?id=${exam.id}`}
+                      variant="outline"
+                      size="sm"
+                    >
+                      Manage Exam
+                    </Button>
                   </div>
                   
                   {exam.status === "active" && (

@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 
 interface DashboardLayoutProps {
   children: ReactNode;
-  title?: string;
+  title: string;
   subtitle?: string;
 }
 
@@ -16,19 +16,17 @@ export function DashboardLayout({ children, title, subtitle }: DashboardLayoutPr
       
       <main className="flex-1 pt-24 pb-12">
         <div className="container mx-auto px-4">
-          {title && (
-            <motion.div 
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3 }}
-              className="page-header mb-6"
-            >
-              <h1 className="text-3xl md:text-4xl font-medium">{title}</h1>
-              {subtitle && (
-                <p className="text-muted-foreground mt-2">{subtitle}</p>
-              )}
-            </motion.div>
-          )}
+          <motion.div 
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.3 }}
+            className="page-header"
+          >
+            <h1 className="text-3xl md:text-4xl font-medium">{title}</h1>
+            {subtitle && (
+              <p className="page-header-subtitle">{subtitle}</p>
+            )}
+          </motion.div>
           
           <motion.div
             initial={{ opacity: 0 }}
