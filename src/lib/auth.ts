@@ -108,27 +108,44 @@ export const getCurrentUser = async (): Promise<UserProfile | null> => {
     const user = session.user;
     console.log("Current user ID:", user.id);
     
-    // Fetch the user's profile from the profiles table to get role info
-    // Use a simpler query to prevent recursion issues
+    // Use our security-definer function to avoid recursion when getting user role
+    const getUserRoleQuery = `
+      SELECT get_user_role('${user.id}') as role;
+    `;
+    
+    const { data: roleData, error: roleError } = await supabase.rpc('get_user_role', {
+      user_id: user.id
+    });
+    
+    let userRole = 'student';
+    if (roleError) {
+      console.error("Error fetching role:", roleError);
+    } else {
+      userRole = roleData || 'student';
+    }
+    
+    // Get the basic profile data
     const { data: profile, error } = await supabase
       .from('profiles')
-      .select('id, name, email, role, avatar_url, college_id')
+      .select('name, email, avatar_url, college_id')
       .eq('id', user.id)
       .single();
     
     if (error) {
       console.error("Error fetching profile:", error.message);
-      return null;
-    }
-    
-    if (!profile) {
-      console.log("No profile found for user");
-      return null;
+      // Return minimal user data from auth session as fallback
+      return {
+        id: user.id,
+        name: user.email?.split('@')[0] || '',
+        email: user.email || '',
+        role: userRole as 'student' | 'admin',
+        profileImage: `https://ui-avatars.com/api/?name=${user.email?.split('@')[0]}&background=random`
+      };
     }
     
     // Separate query to get college name if needed
     let collegeName = null;
-    if (profile.college_id) {
+    if (profile?.college_id) {
       const { data: college } = await supabase
         .from('colleges')
         .select('name')
@@ -140,11 +157,11 @@ export const getCurrentUser = async (): Promise<UserProfile | null> => {
     
     return {
       id: user.id,
-      name: profile.name || user.email?.split('@')[0] || '',
+      name: profile?.name || user.email?.split('@')[0] || '',
       email: user.email || '',
-      role: profile.role || 'student',
-      profileImage: profile.avatar_url || `https://ui-avatars.com/api/?name=${profile.name || user.email?.split('@')[0]}&background=random`,
-      collegeId: profile.college_id,
+      role: userRole as 'student' | 'admin',
+      profileImage: profile?.avatar_url || `https://ui-avatars.com/api/?name=${profile?.name || user.email?.split('@')[0]}&background=random`,
+      collegeId: profile?.college_id,
       collegeName: collegeName || undefined
     };
   } catch (error) {
