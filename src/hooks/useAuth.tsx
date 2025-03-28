@@ -28,14 +28,20 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, newSession) => {
+        console.log('Auth state changed:', event, newSession?.user?.id);
         setSession(newSession);
         setUser(newSession?.user ?? null);
         
         if (newSession?.user) {
           // Defer profile fetch to avoid deadlock
           setTimeout(async () => {
-            const userProfile = await getCurrentUser();
-            setProfile(userProfile);
+            try {
+              const userProfile = await getCurrentUser();
+              console.log('Profile fetched after auth state change:', userProfile);
+              setProfile(userProfile);
+            } catch (error) {
+              console.error('Error fetching user profile:', error);
+            }
           }, 0);
         } else {
           setProfile(null);
@@ -45,12 +51,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     // THEN check for existing session
     supabase.auth.getSession().then(async ({ data: { session } }) => {
+      console.log('Initial session check:', session?.user?.id);
       setSession(session);
       setUser(session?.user ?? null);
       
       if (session?.user) {
-        const userProfile = await getCurrentUser();
-        setProfile(userProfile);
+        try {
+          const userProfile = await getCurrentUser();
+          console.log('Initial profile:', userProfile);
+          setProfile(userProfile);
+        } catch (error) {
+          console.error('Error fetching initial user profile:', error);
+        }
       }
       
       setIsLoading(false);

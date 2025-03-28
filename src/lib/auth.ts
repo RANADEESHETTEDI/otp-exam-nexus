@@ -23,20 +23,24 @@ export const loginUser = async (
   }
   
   try {
+    console.log("Attempting to login:", email);
     const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
     
     if (error) {
+      console.error("Login error:", error.message);
       return { success: false, message: error.message };
     }
     
+    console.log("Login successful");
     return { 
       success: true, 
       message: "Login successful"
     };
   } catch (error: any) {
+    console.error("Unexpected login error:", error);
     return { success: false, message: error.message || "An unexpected error occurred" };
   }
 };
@@ -54,6 +58,7 @@ export const registerUser = async (
   }
   
   try {
+    console.log("Registering user:", { email, name, collegeId, isAdmin });
     const { error } = await supabase.auth.signUp({
       email,
       password,
@@ -67,14 +72,17 @@ export const registerUser = async (
     });
     
     if (error) {
+      console.error("Registration error:", error.message);
       return { success: false, message: error.message };
     }
     
+    console.log("Registration successful");
     return { 
       success: true, 
       message: "Registration successful. Please check your email for verification."
     };
   } catch (error: any) {
+    console.error("Unexpected registration error:", error);
     return { success: false, message: error.message || "An unexpected error occurred" };
   }
 };
@@ -93,19 +101,27 @@ export const getCurrentUser = async (): Promise<UserProfile | null> => {
     const { data: { session } } = await supabase.auth.getSession();
     
     if (!session) {
+      console.log("No session found");
       return null;
     }
     
     const user = session.user;
+    console.log("Current user ID:", user.id);
     
     // Fetch the user's profile from the profiles table to get role info
-    const { data: profile } = await supabase
+    const { data: profile, error } = await supabase
       .from('profiles')
       .select('*, colleges(name)')
       .eq('id', user.id)
       .single();
     
+    if (error) {
+      console.error("Error fetching profile:", error.message);
+      return null;
+    }
+    
     if (!profile) {
+      console.log("No profile found for user");
       return null;
     }
     

@@ -22,6 +22,8 @@ const Login = () => {
   const [redirectProgress, setRedirectProgress] = useState(0);
   const [loginAttempted, setLoginAttempted] = useState(false);
 
+  console.log("Login render:", { session: !!session, profile, isLoading, loginAttempted });
+
   // Redirect if already logged in
   useEffect(() => {
     if (session && profile && !isLoading) {
@@ -32,11 +34,9 @@ const Login = () => {
           if (prev >= 100) {
             clearInterval(interval);
             // Redirect based on role with replace to prevent going back to login
-            if (profile.role === 'admin') {
-              navigate("/admin/dashboard", { replace: true });
-            } else {
-              navigate("/dashboard", { replace: true });
-            }
+            const redirectPath = profile.role === 'admin' ? "/admin/dashboard" : "/dashboard";
+            console.log("Redirecting to:", redirectPath);
+            navigate(redirectPath, { replace: true });
             return 100;
           }
           return prev + 5;
@@ -73,10 +73,12 @@ const Login = () => {
     
     try {
       setLoginAttempted(true);
+      console.log("Submitting login form:", { email });
       const result = await loginUser(email, password);
       
       if (result.success) {
         toast.success("Login successful");
+        console.log("Login successful, waiting for auth state to update...");
         // Navigation will be handled by the auth state change in useEffect
       } else {
         if (result.message.includes("email")) {
@@ -88,6 +90,7 @@ const Login = () => {
         }
       }
     } catch (error: any) {
+      console.error("Login error:", error);
       toast.error(error.message || "An unexpected error occurred. Please try again.");
     } finally {
       setFormLoading(false);
