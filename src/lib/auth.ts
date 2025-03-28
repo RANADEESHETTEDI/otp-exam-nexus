@@ -109,6 +109,10 @@ export const getCurrentUser = async (): Promise<UserProfile | null> => {
     console.log("Current user ID:", user.id);
     
     // Use our security-definer function to avoid recursion when getting user role
+    const getUserRoleQuery = `
+      SELECT get_user_role('${user.id}') as role;
+    `;
+    
     const { data: roleData, error: roleError } = await supabase.rpc('get_user_role', {
       user_id: user.id
     });

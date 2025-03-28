@@ -52,40 +52,51 @@ const Register = () => {
       try {
         setLoadingColleges(true);
         
-        // Try to fetch colleges directly as an anonymous user
-        const { data, error } = await supabase
-          .from('colleges')
-          .select('*');
+        // First ensure we're authenticated to access colleges
+        const { data: { session: currentSession } } = await supabase.auth.getSession();
         
-        if (error) {
-          console.error("Error fetching colleges:", error);
-          toast.error("Failed to load colleges. Using default college.");
+        if (!currentSession) {
+          // If not authenticated, try anonymous access (if allowed by RLS)
+          const { data, error } = await supabase
+            .from('colleges')
+            .select('*');
           
-          // Set a default college as fallback
-          setColleges([{
-            id: "default-college-id",
-            name: "HITAM College of Engineering",
-            code: "HITAM"
-          }]);
-        } else {
-          console.log("Colleges fetched successfully:", data);
-          if (data && data.length > 0) {
-            setColleges(data);
-            // Auto-select the first college
-            setCollegeId(data[0].id);
-          } else {
-            // No colleges found, set default
+          if (error) {
+            console.error("Error fetching colleges (anonymous):", error);
+            
+            // If anonymous access fails, we'll set a default college
             setColleges([{
               id: "default-college-id",
               name: "HITAM College of Engineering",
               code: "HITAM"
             }]);
-            setCollegeId("default-college-id");
+            
+            if (error.message.includes("JWT")) {
+              toast.error("Please log in first to access colleges");
+            } else {
+              toast.error("Failed to load colleges. Please try again later.");
+            }
+          } else {
+            console.log("Colleges fetched successfully:", data);
+            setColleges(data || []);
+          }
+        } else {
+          // If authenticated, fetch colleges
+          const { data, error } = await supabase
+            .from('colleges')
+            .select('*');
+          
+          if (error) {
+            console.error("Error fetching colleges:", error);
+            toast.error("Failed to load colleges. Please try again later.");
+          } else {
+            console.log("Colleges fetched successfully:", data);
+            setColleges(data || []);
           }
         }
       } catch (error) {
         console.error("Exception fetching colleges:", error);
-        toast.error("Failed to load colleges. Using default college.");
+        toast.error("Failed to load colleges. Please try again later.");
         
         // Set a default college as fallback
         setColleges([{
@@ -93,7 +104,6 @@ const Register = () => {
           name: "HITAM College of Engineering",
           code: "HITAM"
         }]);
-        setCollegeId("default-college-id");
       } finally {
         setLoadingColleges(false);
       }
@@ -143,12 +153,12 @@ const Register = () => {
       hasError = true;
     }
     
-    // If we don't have a collegeId selected, use the first one
+    // If we have a college but no collegeId selected, use the first one
     if (!collegeId && colleges.length > 0) {
       setCollegeId(colleges[0].id);
     }
     
-    if (!collegeId) {
+    if (!collegeId && colleges.length === 0) {
       setErrors(prev => ({ ...prev, college: "Please select your college" }));
       hasError = true;
     }
@@ -221,11 +231,15 @@ const Register = () => {
               <SelectValue placeholder={loadingColleges ? "Loading colleges..." : "Select your college"} />
             </SelectTrigger>
             <SelectContent>
-              {colleges.map((college) => (
-                <SelectItem key={college.id} value={college.id}>
-                  {college.name} ({college.code})
-                </SelectItem>
-              ))}
+              {colleges.length === 0 && !loadingColleges ? (
+                <SelectItem value="default-college-id">HITAM College of Engineering</SelectItem>
+              ) : (
+                colleges.map((college) => (
+                  <SelectItem key={college.id} value={college.id}>
+                    {college.name} ({college.code})
+                  </SelectItem>
+                ))
+              )}
             </SelectContent>
           </Select>
           {errors.college && (
