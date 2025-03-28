@@ -109,9 +109,10 @@ export const getCurrentUser = async (): Promise<UserProfile | null> => {
     console.log("Current user ID:", user.id);
     
     // Fetch the user's profile from the profiles table to get role info
+    // Use a simpler query to prevent recursion issues
     const { data: profile, error } = await supabase
       .from('profiles')
-      .select('*, colleges(name)')
+      .select('id, name, email, role, avatar_url, college_id')
       .eq('id', user.id)
       .single();
     
@@ -125,6 +126,18 @@ export const getCurrentUser = async (): Promise<UserProfile | null> => {
       return null;
     }
     
+    // Separate query to get college name if needed
+    let collegeName = null;
+    if (profile.college_id) {
+      const { data: college } = await supabase
+        .from('colleges')
+        .select('name')
+        .eq('id', profile.college_id)
+        .single();
+      
+      collegeName = college?.name;
+    }
+    
     return {
       id: user.id,
       name: profile.name || user.email?.split('@')[0] || '',
@@ -132,7 +145,7 @@ export const getCurrentUser = async (): Promise<UserProfile | null> => {
       role: profile.role || 'student',
       profileImage: profile.avatar_url || `https://ui-avatars.com/api/?name=${profile.name || user.email?.split('@')[0]}&background=random`,
       collegeId: profile.college_id,
-      collegeName: profile.colleges?.name
+      collegeName: collegeName || undefined
     };
   } catch (error) {
     console.error("Error getting current user:", error);

@@ -5,10 +5,16 @@ import { AuthLayout } from "@/components/layout/AuthLayout";
 import { Input } from "@/components/ui-custom/Input";
 import { Button } from "@/components/ui-custom/Button";
 import { registerUser } from "@/lib/auth";
-import { getColleges } from "@/lib/exam";
+import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
+
+interface College {
+  id: string;
+  name: string;
+  code: string;
+}
 
 const Register = () => {
   const navigate = useNavigate();
@@ -18,7 +24,7 @@ const Register = () => {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [collegeId, setCollegeId] = useState("");
-  const [colleges, setColleges] = useState<{ id: string; name: string; code: string }[]>([]);
+  const [colleges, setColleges] = useState<College[]>([]);
   const [errors, setErrors] = useState({
     name: "",
     email: "",
@@ -45,8 +51,18 @@ const Register = () => {
     const fetchColleges = async () => {
       try {
         setLoadingColleges(true);
-        const collegeData = await getColleges();
-        setColleges(collegeData);
+        // Directly fetch from the colleges table
+        const { data, error } = await supabase
+          .from('colleges')
+          .select('*');
+        
+        if (error) {
+          console.error("Error fetching colleges:", error);
+          toast.error("Failed to load colleges. Please try again later.");
+          return;
+        }
+        
+        setColleges(data || []);
       } catch (error) {
         console.error("Error fetching colleges:", error);
         toast.error("Failed to load colleges. Please try again later.");

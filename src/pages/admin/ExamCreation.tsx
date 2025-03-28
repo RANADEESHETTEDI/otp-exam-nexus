@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Card } from "@/components/ui-custom/Card";
@@ -136,10 +135,8 @@ const ExamCreation = () => {
   };
 
   return (
-    <DashboardLayout>
+    <DashboardLayout title="Create New Exam">
       <div className="container mx-auto py-8">
-        <h1 className="text-3xl font-bold mb-6">Create New Exam</h1>
-        
         <Card className="max-w-3xl mx-auto">
           <div className="p-6">
             <h2 className="text-xl font-semibold mb-4">Exam Details</h2>
